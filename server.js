@@ -1,12 +1,12 @@
 require('dotenv').config()
-// require("./utils/passport")
-
+require("./utils/passport")
 const express = require('express')
 const cors = require('cors')
 
 const bodyParser = require('body-parser')
 const userRoutes = require('./routes/userRoutes')
 const authRoutes = require('./routes/authRoutes')
+const passport = require("passport")
 
 const corsOptions = {
     origin: '*',
@@ -16,7 +16,7 @@ const corsOptions = {
 const app = express()
 
 app.use(bodyParser.json())
-// app.use(passport.initialize())
+app.use(passport.initialize())
 app.use(cors(corsOptions))
 
 app.use("/user", userRoutes)

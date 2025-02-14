@@ -1,9 +1,9 @@
 const express = require("express")
 const passport = require("passport")
 const router = express.Router()
-const tokenAuthMiddleware = require('../middlewares/tokenAuthMiddleware')
+const authMiddleware = require('../middlewares/authMiddleware')
 
-router.get('/jwt',tokenAuthMiddleware,(req,res) => res.json({data : req.user}))
+router.get('/jwt',authMiddleware.authenticateToken,(req,res) => res.json({data : req.user}))
 router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }))
 router.get(
     "/google/callback",

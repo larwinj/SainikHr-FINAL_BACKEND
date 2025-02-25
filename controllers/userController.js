@@ -2,12 +2,18 @@ const { v4: uuidv4 } = require("uuid")
 const passwordHasher = require("../utils/passwordHasher")
 const dbModel = require("../models/dbModels")
 const JWTToken = require("../utils/jwtToken")
+const { verifyOtp } = require("../utils/otpService")
 
 async function signUp(req,res) {
     try {
         const user = req.body
+        const data = req.user
         const usersCollection = await dbModel.getUsersCollection()
         const existingUser = await usersCollection.findOne({ email: user.email })
+
+        if(!verifyOtp(user.email,user.otp,data)) {
+            return res.status(401).json({ message: "Invalid OTP" })
+        }
 
         if (existingUser) {
             return res.status(403).json({ message: "User with this email already exists" })
@@ -15,6 +21,9 @@ async function signUp(req,res) {
 
         user.userId = uuidv4()
         user.password = await passwordHasher.hashPassword(user.password)
+        user.createdAt = new Date()
+        user.updatedAt = new Date()
+        delete user.otp
 
         await usersCollection.insertOne(user);
 
@@ -59,11 +68,13 @@ async function createResume(req,res) {
         } 
         
         data.resumeId = uuidv4()
+        data.createdAt = new Date()
+        data.updatedAt = new Date()
         
         await resumesCollection.insertOne(data)
         await usersCollection.updateOne(
             { userId },
-            { $push: { resumes: data.resumeId } }
+            { $push: { resumes: data.resumeId }, $set: { updatedAt : new Date()} }
         )
 
         return res.status(201).json({ message: "Resume added successfully!" })
@@ -82,6 +93,8 @@ async function updateResume(req,res) {
         if(!existingResume) {
             return res.status(404).json({ message: "Resume does not exists!" })
         }
+
+        existingResume.updatedAt = new Date()
         
         await resumesCollection.replaceOne(
             { resumeId: data.resumeId }, 

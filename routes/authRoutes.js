@@ -10,8 +10,13 @@ router.get("/google",passport.authenticate("google", { scope: ["profile", "email
 router.get(
     "/google/callback",
     passport.authenticate("google", { session: false }),
+    // (req, res) => {
+    //     res.json({ message: "OAuth Login Successful", token: req.user.token })
+    // }
     (req, res) => {
-        res.json({ message: "OAuth Login Successful", token: req.user.token })
+        const token = req.user.token;
+        res.setHeader("Authorization", `Bearer ${token}`);
+        res.redirect("http://localhost:4080/veteran");
     }
 )
 

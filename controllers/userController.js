@@ -142,15 +142,20 @@ async function deleteResume(req,res) {
 
 async function getResume(req,res) {
     try {
-        const resumeId = req.params?.resumeId
-        const resumesCollection = await dbModel.getResumesCollection()
-        const existingResume = await resumesCollection.findOne({ resumeId })
-
-        if(!existingResume) {
-            return res.status(404).json({ message: "Resume does not exists!" })
+        const resumeId = req.params?.resumeId;
+        const resumesCollection = await dbModel.getResumesCollection();
+        
+        let existingResume;
+        
+        if (resumeId) {
+            existingResume = await resumesCollection.findOne({ resumeId });
+            if (!existingResume) {
+                return res.status(404).json({ message: "Resume does not exist!" });
+            }
+        } else {
+            existingResume = await resumesCollection.find().toArray();
         }
-
-        return res.status(200).json({ data : existingResume })
+        return res.status(200).json({ data: existingResume });        
     } catch (error) {
         console.error("Error signup : ", error)
         res.status(500).json({ message: "Internal Server Error" })

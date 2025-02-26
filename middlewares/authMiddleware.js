@@ -25,6 +25,15 @@ function authorizeRoles(...allowedRoles) {
     };
 }
 
+function authorizeSubscription(...allowedSubscriptions) {
+    return(req,res,next) => {
+        if(!req.user || !allowedSubscriptions.includes(req.user.subscription)) {
+            return res.status(402).json({ message: "Access denied. Payment Required." })
+        }
+        next()
+    }
+}
+
 module.exports = { 
     authenticateToken,
     authorizeRoles

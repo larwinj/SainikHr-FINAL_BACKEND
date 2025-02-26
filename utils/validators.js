@@ -22,7 +22,7 @@ const registerSchemaUser = Joi.object({
         "string.length": "OTP must be exactly 6 characters",
         "any.required": "OTP is required",
     }),   
-    role: Joi.string().required().valid("user").messages({
+    role: Joi.string().required().valid("veteran").messages({
         "string.empty": "Role cannot be empty",
         "any.only" : "Role is needed to be 'user'",
         "any.required": "Role is required",
@@ -55,7 +55,7 @@ const registerSchemaCorp = Joi.object({
         "string.length": "OTP must be exactly 6 characters",
         "any.required": "OTP is required",
     }),   
-    role: Joi.string().required().valid("corp").messages({
+    role: Joi.string().required().valid("corporate").messages({
         "string.empty": "Role cannot be empty",
         "any.only": "Role is needed to be 'corp'",
         "any.required": "Role is required",

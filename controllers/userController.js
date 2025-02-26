@@ -27,7 +27,14 @@ async function signUp(req,res) {
 
         await usersCollection.insertOne(user);
 
-        return res.status(201).json({ message: "User registered successfully", userId: user.userId, token: JWTToken({ userId: user.userId, role: user.role },"1d")})
+        res.cookie("jwt", JWTToken({ userId: user.userId, role: user.role },"1d"), {
+            httpOnly: true,  
+            // secure: true,    //secure in production
+            sameSite: "Strict",  
+            maxAge: 24 * 60 * 60 * 1000,  
+        })
+
+        return res.status(201).json({ message: "User registered successfully" })
     } catch (error) {
         console.error("Error signup : ", error)
         res.status(500).json({ message: "Internal Server Error" })
@@ -47,7 +54,13 @@ async function logIn(req,res) {
             return res.status(401).json({ message: "Invalid Email or Password" })
         }
         else {
-            return res.status(200).json({ message: "Login successful", userId: existingUser.userId, token: JWTToken({ userId: existingUser.userId, role: existingUser.role },"1d")})
+            res.cookie("jwt", JWTToken({ userId: existingUser.userId, role: existingUser.role },"1d"), {
+                httpOnly: true,  
+                // secure: true,  Secure in production  
+                sameSite: "Strict",  
+                maxAge: 24 * 60 * 60 * 1000,  
+            })
+            return res.status(200).json({ message: "Login successful" })
         }
     } catch (error) {
         console.error("Error signup : ", error)

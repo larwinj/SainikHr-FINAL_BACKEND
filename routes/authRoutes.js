@@ -7,17 +7,6 @@ const authController = require("../controllers/authController")
 router.get('/jwt',authMiddleware.authenticateToken,(req,res) => res.json({data : req.user}))
 router.get('/sendotp',authController.sendOTP)
 router.get("/google",passport.authenticate("google", { scope: ["profile", "email"] }))
-router.get(
-    "/google/callback",
-    passport.authenticate("google", { session: false }),
-    // (req, res) => {
-    //     res.json({ message: "OAuth Login Successful", token: req.user.token })
-    // }
-    (req, res) => {
-        const token = req.user.token;
-        res.setHeader("Authorization", `Bearer ${token}`);
-        res.redirect("http://localhost:4080/veteran");
-    }
-)
+router.get("/google/callback",passport.authenticate("google", { session: false }),authController.googleRedirect)
 
 module.exports = router

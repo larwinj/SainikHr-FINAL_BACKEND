@@ -19,6 +19,22 @@ async function sendOTP(req,res) {
     }
 }
 
+async function googleRedirect(req,res) {
+    try {
+        const token = req.user.token;
+        res.cookie("jwt", token, {
+            httpOnly: true,  
+            // secure: true,   Secure in production 
+            sameSite: "Strict",  
+            maxAge: 24 * 60 * 60 * 1000,  
+        })
+        res.redirect("http://localhost:4080/veteran"); //change in production
+    } catch (error) {
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
 module.exports = {
-    sendOTP
+    sendOTP,
+    googleRedirect
 }

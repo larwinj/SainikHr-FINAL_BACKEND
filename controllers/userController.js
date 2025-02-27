@@ -25,16 +25,13 @@ async function signUp(req,res) {
         user.updatedAt = new Date()
         delete user.otp
 
+        if(user.role !== "veteran") {
+            user.resumeViews = 0
+        }
+
         await usersCollection.insertOne(user);
 
-        res.cookie("jwt", JWTToken({ userId: user.userId, role: user.role },"1d"), {
-            httpOnly: true,  
-            // secure: true,    //secure in production
-            sameSite: "Strict",  
-            maxAge: 24 * 60 * 60 * 1000,  
-        })
-
-        return res.status(201).json({ message: "User registered successfully" })
+        return res.status(201).json({ message: "User registered successfully", userId: user.userId, token: JWTToken({ userId: user.userId, role: user.role },"1d")})
     } catch (error) {
         console.error("Error signup : ", error)
         res.status(500).json({ message: "Internal Server Error" })
@@ -54,13 +51,7 @@ async function logIn(req,res) {
             return res.status(401).json({ message: "Invalid Email or Password" })
         }
         else {
-            res.cookie("jwt", JWTToken({ userId: existingUser.userId, role: existingUser.role },"1d"), {
-                httpOnly: true,  
-                // secure: true,  Secure in production  
-                sameSite: "Strict",  
-                maxAge: 24 * 60 * 60 * 1000,  
-            })
-            return res.status(200).json({ message: "Login successful" })
+            return res.status(200).json({ message: "Login successful", userId: existingUser.userId, token: JWTToken({ userId: existingUser.userId, role: existingUser.role },"1d")})
         }
     } catch (error) {
         console.error("Error signup : ", error)
@@ -166,12 +157,114 @@ async function getResume(req,res) {
                 return res.status(404).json({ message: "Resume does not exist!" });
             }
         } else {
-            existingResume = await resumesCollection.find().toArray();
+            existingResume = await resumesCollection.find().toArray(); 
         }
         return res.status(200).json({ data: existingResume });        
     } catch (error) {
         console.error("Error signup : ", error)
         res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
+async function saveJob(req,res) {
+    try {
+        const jobId = req.params?.jobId;
+        const userId = req.user?.userId;
+
+        const jobsCollection = await dbModel.getJobsCollection();
+        const usersCollection = await dbModel.getUsersCollection();
+
+        if (!jobId) {
+            return res.status(400).json({ message: "Job Id is required!" });
+        }
+
+        const existingJob = await jobsCollection.findOne({ jobId });
+        
+        if (!existingJob) {
+            return res.status(404).json({ message: "Job doesn't exist!" });
+        }
+        
+        const existingUser = await usersCollection.findOne({ userId });
+
+        if (existingUser) {
+            await usersCollection.updateOne(
+                { userId }, 
+                { $push: { saved_jobs: jobId } }  
+            );
+        } else {
+            return res.status(400).json({ message: "User doesn't exists!" })
+        }
+        return res.status(204).json();
+    } catch (error) {
+        console.error("Error signup : ", error)
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
+async function removeSavedJob(req,res) {
+    try {
+        const jobId = req.params?.jobId;
+        const userId = req.user?.userId;
+        
+        const jobsCollection = await dbModel.getJobsCollection();
+        const usersCollection = await dbModel.getUsersCollection();
+        
+        if (!jobId) {
+            return res.status(400).json({ message: "Job Id is required!" });
+        }
+        
+        const existingJob = await jobsCollection.findOne({ jobId });
+        
+        if (!existingJob) {
+            return res.status(404).json({ message: "Job doesn't exist!" });
+        }
+
+        const existingUser = await usersCollection.findOne({ userId });
+
+        if (existingUser) {
+            await usersCollection.updateOne(
+                { userId }, 
+                { $pull: { saved_jobs: jobId } }  
+            )
+        } else {
+            return res.status(400).json({ message: "User doesn't exists!" })
+        }
+        return res.status(204).json();
+    } catch (error) {
+        console.error("Error signup : ", error)
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
+async function getSavedJobs(req, res) {
+    try {
+        const userId = req.user?.userId;
+        
+        if (!userId) {
+            return res.status(400).json({ message: "User ID is required!" });
+        }
+
+        const jobsCollection = await dbModel.getJobsCollection();
+        const usersCollection = await dbModel.getUsersCollection();
+
+        const existingUser = await usersCollection.findOne({ userId });
+
+        if (!existingUser) {
+            return res.status(404).json({ message: "User doesn't exist!" });
+        }
+
+        const savedJobIds = existingUser.saved_jobs || [];
+
+        if (savedJobIds.length === 0) {
+            return res.status(200).json({ data: [], message: "No saved jobs found." });
+        }
+
+        const savedResumes = await jobsCollection.find({ jobId: { $in: savedJobIds } }).toArray();
+
+        return res.status(200).json({ data: savedResumes });
+    } catch (error) {
+        console.error("Error fetching saved jobs: ", error);
+        res.status(500).json({ message: "Internal Server Error" });
     }
 }
 
@@ -182,5 +275,8 @@ module.exports = {
     createResume,
     updateResume,
     deleteResume,
-    getResume
+    getResume,
+    saveJob,
+    removeSavedJob,
+    getSavedJobs
 }

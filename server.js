@@ -10,15 +10,18 @@ const corporateRoutes = require('./routes/corporateRoutes')
 const passport = require("passport")
 
 const corsOptions = {
+    // origin: 'http://192.168.243.154:5173',
     origin: '*',
     methods: ['GET', 'POST', 'PUT' ,'DELETE' ],
 }
 
 const app = express()
 
+app.use(cors(corsOptions))
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 app.use(passport.initialize())
-app.use(cors(corsOptions))
 
 app.use("/veteran", userRoutes)
 app.use("/corporate", corporateRoutes)

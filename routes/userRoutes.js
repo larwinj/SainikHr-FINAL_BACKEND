@@ -4,6 +4,7 @@ const userController = require('../controllers/userController')
 const validationMiddleware = require('../middlewares/validationMiddleware')
 const validator = require('../utils/validators')
 const authMiddleware = require('../middlewares/authMiddleware')
+const corporateController = require('../controllers/corporateController')
 
 router.post('/register',
     authMiddleware.authenticateToken,
@@ -19,5 +20,9 @@ router.post('/resume/create',authMiddleware.authenticateToken,authMiddleware.aut
 router.put('/resume/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.resumeIdSchema),userController.updateResume)
 router.delete('/resume/remove',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.resumeIdSchema),userController.deleteResume)
 router.get('/resume/:resumeId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.getResume)
+router.get('/jobcards',authMiddleware.authenticateToken,corporateController.getJobCards)
+router.put('/job/save/:jobId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.saveJob)
+router.delete('/job/remove/:jobId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.removeSavedJob)
+router.get('/job/view',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.getSavedJobs)
 
 module.exports = router

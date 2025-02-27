@@ -97,39 +97,103 @@ async function updateJobCard(req, res) {
     }
 }
 
-async function getJobCards(req, res) {
-    try {
+async function subscription(req, res) {
+  try {
       const userId = req.user?.userId;
+      const { newPlan } = req.query; 
+
+      if (!userId) {
+          return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      if (!newPlan || !["standard", "enterprise"].includes(newPlan)) {
+          return res.status(400).json({ message: "Invalid subscription plan" });
+      }
+
       const usersCollection = await dbModel.getUsersCollection();
-      const jobsCollection = await dbModel.getJobsCollection();
-  
-      const existingUser = await usersCollection.findOne({ userId });
-  
-      if (!existingUser) {
-        return res.status(404).json({ message: "User not Found!" });
+      const user = await usersCollection.findOne({ userId });
+
+      if (!user || !user.role.startsWith("corporate")) {
+          return res.status(403).json({ message: "Access Denied: Only corporate users can upgrade" });
       }
-  
-      if (!existingUser.jobs || existingUser.jobs.length === 0) {
-        return res.status(200).json({ message: "No jobs found for this user.", jobs: [] });
-      }
-  
-      const jobCards = await jobsCollection
-        .find({ jobId: { $in: existingUser.jobs } })
-        .toArray();
-  
-      return res.status(200).json({
-        message: "Job Cards Retrieved Successfully",
-        jobs: jobCards,
-      });
-    } catch (error) {
+
+      const newRole = `corporate_${newPlan}`;
+
+      await usersCollection.updateOne(
+          { userId },
+          {
+            $set: { 
+            role: newRole, 
+            subscribedAt: new Date(),
+            ...(user.role === "corporate_free" && { resumeViews: 0 }) 
+          }
+        }  
+      );
+
+      return res.status(200).json({ message: `Subscription upgraded to ${newPlan}` });
+
+  } catch (error) {
       console.error("Error:", error);
       res.status(500).json({ message: "Internal Server Error" });
-    }
+  }
 }
+
+async function getJobCards(req, res) {
+  try {
+      const { userId, jobType, minSalary, maxSalary, location, page = 1, limit = 10 } = req.query;
+      const jobsCollection = await dbModel.getJobsCollection();
+      
+      let query = {}; 
+
+      if (userId) {
+          query.postedBy = userId;
+      }
+
+      if (jobType) {
+          query.jobType = jobType;
+      }
+
+      if (minSalary && maxSalary) {
+          query.salary = { $gte: parseInt(minSalary), $lte: parseInt(maxSalary) };
+      } else if (minSalary) {
+          query.salary = { $gte: parseInt(minSalary) };
+      } else if (maxSalary) {
+          query.salary = { $lte: parseInt(maxSalary) };
+      }
+
+      if (location) {
+          query.location = location;
+      }
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const jobCards = await jobsCollection
+          .find(query)
+          .skip(skip)
+          .limit(parseInt(limit))
+          .toArray();
+
+      const totalJobs = await jobsCollection.countDocuments(query);
+
+      return res.status(200).json({
+          message: "Job Cards Retrieved Successfully",
+          jobs: jobCards,
+          totalJobs,   
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(totalJobs / parseInt(limit)),
+      });
+
+  } catch (error) {
+      console.error("Error:", error);
+      res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
 
 module.exports = { 
     profileUpdate,
     addJobCard,
     getJobCards,
-    updateJobCard
+    updateJobCard,
+    subscription
 }

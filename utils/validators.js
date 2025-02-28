@@ -289,94 +289,68 @@ const resumeIdSchema = Joi.object({
 }).unknown(true)
 
 const jobCardSchema = Joi.object({
-    companyName: Joi.string()
-        .min(3)
-        .max(100)
-        .required()
-        .messages({
+    companyName: Joi.string().min(3).max(100).required().messages({
         'string.base': 'Company name must be a string.',
         'string.empty': 'Company name is required.',
         'string.min': 'Company name must be at least 3 characters long.',
         'string.max': 'Company name cannot exceed 100 characters.',
         'any.required': 'Company name is required.',
-        }),
-    
-    email: Joi.string()
-        .email({ tlds: { allow: false } })
-        .required()
-        .messages({
+    }),
+
+    email: Joi.string().email({ tlds: { allow: false } }).required().messages({
         'string.base': 'Email must be a string.',
         'string.email': 'Please provide a valid email address.',
         'string.empty': 'Email is required.',
         'any.required': 'Email is required.',
-        }),
-    
+    }),
+
     contactPerson: Joi.object({
-        name: Joi.string()
-        .min(3)
-        .max(50)
-        .required()
-        .messages({
+        name: Joi.string().min(3).max(50).required().messages({
             'string.base': 'Contact person name must be a string.',
             'string.empty': 'Contact person name is required.',
             'string.min': 'Contact person name must be at least 3 characters long.',
             'string.max': 'Contact person name cannot exceed 50 characters.',
             'any.required': 'Contact person name is required.',
         }),
-    
-        position: Joi.string()
-        .min(2)
-        .max(50)
-        .required()
-        .messages({
+
+        position: Joi.string().min(2).max(50).required().messages({
             'string.base': 'Position must be a string.',
             'string.empty': 'Position is required.',
             'string.min': 'Position must be at least 2 characters long.',
             'string.max': 'Position cannot exceed 50 characters.',
             'any.required': 'Position is required.',
         }),
-    
+
         phone: Joi.string()
-        .pattern(/^\+\d{1,3}-\d{3}-\d{3}-\d{4}$/)
-        .required()
-        .messages({
-            'string.pattern.base': 'Phone number must follow the format +<country-code>-<area-code>-<number> (e.g., +1-234-567-8901).',
-            'string.empty': 'Phone number is required.',
-            'any.required': 'Phone number is required.',
-        }),
-        }).required().messages({
-            'object.base': 'Contact person must be an object.',
-            'any.required': 'Contact person details are required.',
-        }),
-    
-    website: Joi.string()
-        .uri()
-        .required()
-        .messages({
+            .pattern(/^\+\d{1,3}-\d{3}-\d{3}-\d{4}$/)
+            .required()
+            .messages({
+                'string.pattern.base': 'Phone number must follow the format +<country-code>-<area-code>-<number> (e.g., +1-234-567-8901).',
+                'string.empty': 'Phone number is required.',
+                'any.required': 'Phone number is required.',
+            }),
+    }).required().messages({
+        'object.base': 'Contact person must be an object.',
+        'any.required': 'Contact person details are required.',
+    }),
+
+    website: Joi.string().uri().required().messages({
         'string.base': 'Website must be a valid URL string.',
         'string.uri': 'Please provide a valid website URL.',
         'string.empty': 'Website is required.',
         'any.required': 'Website is required.',
-        }),
-    
+    }),
+
     address: Joi.object({
-        city: Joi.string()
-        .min(2)
-        .max(50)
-        .required()
-        .messages({
+        city: Joi.string().min(2).max(50).required().messages({
             'string.base': 'City must be a string.',
             'string.empty': 'City is required.',
             'string.min': 'City name must be at least 2 characters long.',
             'string.max': 'City name cannot exceed 50 characters.',
             'any.required': 'City is required.',
         }),
-    
-        state: Joi.string()
-        .length(2)
-        .uppercase()
-        .required()
-        .messages({
+
+        state: Joi.string().length(2).uppercase().required().messages({
             'string.base': 'State must be a string.',
             'string.length': 'State code must be exactly 2 uppercase letters.',
             'string.uppercase': 'State code must be in uppercase (e.g., NY).',
@@ -387,34 +361,70 @@ const jobCardSchema = Joi.object({
         'object.base': 'Address must be an object.',
         'any.required': 'Address details are required.',
     }),
-    
-    industry: Joi.string()
-        .min(3)
-        .max(50)
-        .required()
-        .messages({
+
+    industry: Joi.string().min(3).max(50).required().messages({
         'string.base': 'Industry must be a string.',
         'string.empty': 'Industry is required.',
         'string.min': 'Industry must be at least 3 characters long.',
         'string.max': 'Industry cannot exceed 50 characters.',
         'any.required': 'Industry is required.',
-        }),
-    
+    }),
+
     companySize: Joi.string()
         .valid(
-        '1-10 employees',
-        '11-50 employees',
-        '51-200 employees',
-        '201-500 employees',
-        '501-1000 employees',
-        '1001+ employees'
+            '1-10 employees',
+            '11-50 employees',
+            '51-200 employees',
+            '201-500 employees',
+            '501-1000 employees',
+            '1001+ employees'
         )
         .required()
         .messages({
-        'any.only': 'Company size must be one of the predefined ranges.',
-        'string.empty': 'Company size is required.',
-        'any.required': 'Company size is required.',
+            'any.only': 'Company size must be one of the predefined ranges.',
+            'string.empty': 'Company size is required.',
+            'any.required': 'Company size is required.',
+        }),
+
+    description: Joi.string().min(10).max(1000).required().messages({
+        'string.base': 'Description must be a string.',
+        'string.empty': 'Description is required.',
+        'string.min': 'Description must be at least 10 characters long.',
+        'string.max': 'Description cannot exceed 1000 characters.',
+        'any.required': 'Description is required.',
     }),
+
+    salaryRange: Joi.array()
+        .length(2)
+        .items(Joi.number().min(0).required())
+        .required()
+        .messages({
+            'array.base': 'Salary range must be an array.',
+            'array.length': 'Salary range must contain exactly two values: [min, max].',
+            'number.base': 'Each salary value must be a number.',
+            'number.min': 'Salary value must be at least 0.',
+            'any.required': 'Salary range is required.',
+        }),
+
+    jobType: Joi.string()
+        .valid('Full-time', 'Part-time', 'Contract', 'Internship', 'Freelance')
+        .required()
+        .messages({
+            'any.only': 'Job type must be one of Full-time, Part-time, Contract, Internship, or Freelance.',
+            'string.empty': 'Job type is required.',
+            'any.required': 'Job type is required.',
+        }),
+
+    requirements: Joi.array()
+        .items(Joi.string().min(3).max(200))
+        .required()
+        .messages({
+            'array.base': 'Requirements must be an array.',
+            'array.includes': 'Each requirement must be a string.',
+            'string.min': 'Each requirement must be at least 3 characters long.',
+            'string.max': 'Each requirement cannot exceed 200 characters.',
+            'any.required': 'Requirements are required.',
+        }),
 })
 
 module.exports = { 

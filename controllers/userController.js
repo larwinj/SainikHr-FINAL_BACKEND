@@ -268,6 +268,101 @@ async function getSavedJobs(req, res) {
     }
 }
 
+async function uploadProfileVideo(req, res) {
+    try {
+
+        const userId = req.user?.userId
+        const usersCollection = await dbModel.getUsersCollection()
+
+        const existingUser = await usersCollection.findOne({ userId })
+
+        if(!existingUser) return res.status(404).json({ message: "User not found!" })
+
+        if (!req.file) return res.status(400).json({ message: "No file uploaded!" })
+    
+        const videoUrl = await uploadVideoToS3(req.file)
+
+        await usersCollection.updateOne(
+            { userId }, 
+            { $set: { profile_video_url: videoUrl } }
+        )
+        
+        res.status(200).json({ message: "Upload successful!" })
+    } catch (error) {
+        console.error("Upload error:", error);
+        res.status(500).json({ message: "Upload failed!" });
+    }
+}
+
+async function updateProfileVideo(req, res) {
+    try {
+        const userId = req.user?.userId;
+        const usersCollection = await dbModel.getUsersCollection();
+
+        const existingUser = await usersCollection.findOne({ userId });
+        if (!existingUser) {
+            return res.status(404).json({ message: "User not found!" });
+        }
+
+        const oldVideoUrl = existingUser.profile_video_url;
+
+        if (!req.file) {
+            return res.status(400).json({ message: "No file uploaded!" });
+        }
+
+        if (oldVideoUrl) {
+            const oldVideoKey = oldVideoUrl.split(".com/")[1]; 
+            await deleteVideoFromS3(oldVideoKey);
+        }
+
+        const videoUrl = await uploadVideoToS3(req.file);
+
+        await usersCollection.updateOne(
+            { userId },
+            { $set: { profile_video_url: videoUrl } }
+        );
+
+        res.status(200).json({ message: "Profile video updated successfully!" });
+    } catch (error) {
+        console.error("Upload error:", error);
+        res.status(500).json({ message: "Upload failed!" });
+    }
+}
+
+async function getProfileVideo(req, res) {
+    try {
+        const userId = req.user?.userId;
+        const anotherUserId = req.params?.userId;
+        const usersCollection = await dbModel.getUsersCollection();
+
+        let existingUser;
+
+        if (!anotherUserId) {
+            existingUser = await usersCollection.findOne({ userId });
+        } else {
+            existingUser = await usersCollection.findOne({ userId: anotherUserId }); 
+        }
+
+        if (!existingUser) {
+            return res.status(404).json({ message: "User not found!" });
+        }
+
+        if (!existingUser.profile_video_url) {
+            return res.status(404).json({ message: "No profile video found!" });
+        }
+
+        res.status(200).json({ 
+            message: "Profile video fetched successfully!", 
+            profileVideoUrl: existingUser.profile_video_url
+        });
+
+    } catch (error) {
+        console.error("Error fetching profile video:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+
 
 module.exports = { 
     signUp,
@@ -278,5 +373,8 @@ module.exports = {
     getResume,
     saveJob,
     removeSavedJob,
-    getSavedJobs
+    getSavedJobs,
+    uploadProfileVideo,
+    getProfileVideo,
+    updateProfileVideo
 }

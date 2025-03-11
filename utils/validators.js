@@ -322,13 +322,13 @@ const jobCardSchema = Joi.object({
         }),
 
         phone: Joi.string()
-            .pattern(/^\+\d{1,3}-\d{3}-\d{3}-\d{4}$/)
+            .pattern(/^\+91-\d{10}$/)
             .required()
             .messages({
-                'string.pattern.base': 'Phone number must follow the format +<country-code>-<area-code>-<number> (e.g., +1-234-567-8901).',
+                'string.pattern.base': 'Phone number must follow the format +91-XXXXXXXXXX (e.g., +91-9876543210).',
                 'string.empty': 'Phone number is required.',
                 'any.required': 'Phone number is required.',
-            }),
+            })
     }).required().messages({
         'object.base': 'Contact person must be an object.',
         'any.required': 'Contact person details are required.',
@@ -350,10 +350,8 @@ const jobCardSchema = Joi.object({
             'any.required': 'City is required.',
         }),
 
-        state: Joi.string().length(2).uppercase().required().messages({
+        state: Joi.string().required().messages({
             'string.base': 'State must be a string.',
-            'string.length': 'State code must be exactly 2 uppercase letters.',
-            'string.uppercase': 'State code must be in uppercase (e.g., NY).',
             'string.empty': 'State is required.',
             'any.required': 'State is required.',
         }),

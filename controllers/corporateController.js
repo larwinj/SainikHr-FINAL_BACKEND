@@ -62,6 +62,36 @@ async function addJobCard(req,res) {
     }
 }
 
+async function viewJobCard(req,res) {
+    try {
+        const userId = req.user?.userId
+        const data = req.body
+        const jobsCollection = await dbModel.getJobsCollection()
+        const usersCollection = await dbModel.getUsersCollection()
+
+        const existingUser = await usersCollection.findOne({ userId })
+
+        if (!existingUser) {
+            return res.status(404).json({ message: "User not Found!" })
+        }
+
+        data.jobId = uuidv4()
+        data.createdAt = new Date()
+        data.updatedAt = new Date()
+        await jobsCollection.insertOne(data)
+
+        await usersCollection.updateOne(
+            { userId }, 
+            { $push : { jobs: data.jobId }}
+        )
+
+        return res.status(201).json({ message: "Job Card Added Successfully" })
+    } catch (error) {
+        console.error("Error : ", error)
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
 async function updateJobCard(req, res) {
     try {
       const jobId = req.params?.id;
@@ -139,54 +169,49 @@ async function subscription(req, res) {
 }
 
 async function getJobCards(req, res) {
-  try {
-      const { userId, jobType, minSalary, maxSalary, location, page = 1, limit = 10 } = req.query;
-      const jobsCollection = await dbModel.getJobsCollection();
-      
-      let query = {}; 
+    try {
+        const userId = req.user?.userId 
+        const { page = 1, limit = 10 } = req.query;
+        const jobsCollection = await dbModel.getJobsCollection();
+        const usersCollection = await dbModel.getUsersCollection();
 
-      if (userId) {
-          query.postedBy = userId;
-      }
+        if (!userId) {
+            return res.status(400).json({ message: "User ID is required!" });
+        }
 
-      if (jobType) {
-          query.jobType = jobType;
-      }
+        const user = await usersCollection.findOne({ userId });
 
-      if (minSalary && maxSalary) {
-          query.salary = { $gte: parseInt(minSalary), $lte: parseInt(maxSalary) };
-      } else if (minSalary) {
-          query.salary = { $gte: parseInt(minSalary) };
-      } else if (maxSalary) {
-          query.salary = { $lte: parseInt(maxSalary) };
-      }
+        if (!user) {
+            return res.status(404).json({ message: "User not found!" });
+        }
 
-      if (location) {
-          query.location = location;
-      }
+        const jobIds = user.jobs || [];
+        if (jobIds.length === 0) {
+            return res.status(200).json({ message: "No jobs found.", jobs: [] });
+        }
 
-      const skip = (parseInt(page) - 1) * parseInt(limit);
+        const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const jobCards = await jobsCollection
-          .find(query)
-          .skip(skip)
-          .limit(parseInt(limit))
-          .toArray();
+        const jobCards = await jobsCollection
+            .find({ jobId: { $in: jobIds } })
+            .skip(skip)
+            .limit(parseInt(limit))
+            .toArray();
 
-      const totalJobs = await jobsCollection.countDocuments(query);
+        const totalJobs = jobIds.length;
 
-      return res.status(200).json({
-          message: "Job Cards Retrieved Successfully",
-          jobs: jobCards,
-          totalJobs,   
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(totalJobs / parseInt(limit)),
-      });
+        return res.status(200).json({
+            message: "Job Cards Retrieved Successfully",
+            jobs: jobCards,
+            totalJobs,
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(totalJobs / parseInt(limit)),
+        });
 
-  } catch (error) {
-      console.error("Error:", error);
-      res.status(500).json({ message: "Internal Server Error" });
-  }
+    } catch (error) {
+        console.error("Error fetching job cards: ", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
 }
 
 
@@ -195,5 +220,6 @@ module.exports = {
     addJobCard,
     getJobCards,
     updateJobCard,
-    subscription
+    subscription,
+    viewJobCard
 }

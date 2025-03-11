@@ -20,13 +20,22 @@ passport.use(
                 let user = await usersCollection.findOne({ email: profile.emails[0].value })
 
                 if (!user) {
+                    const settings = {
+                        emailNotification: false,
+                        smsNotification: false,
+                        darkMode: false
+                    }
+
                     const newUser = {
                         userId : uuidv4(),
                         googleId: profile.id,
-                        name: profile.displayName,
-                        role : "user",
+                        fullName: profile.displayName,
+                        role : "veteran",
                         email: profile.emails[0].value,
                         profilePic: profile.photos[0].value,
+                        settings,
+                        createdAt: new Date(),
+                        updatedAt: new Date()
                     }
                     await usersCollection.insertOne(newUser)
                     user = { ...newUser }

@@ -8,6 +8,7 @@ const authMiddleware = require('../middlewares/authMiddleware')
 router.put('/subscription',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard"),corporateController.subscription)
 router.put('/profile/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),validationMiddleware.validateBody(validator.cropProfileUpdateSchema),corporateController.profileUpdate)
 router.post('/jobcard/add',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),validationMiddleware.validateBody(validator.jobCardSchema),corporateController.addJobCard)
+router.get('/jobcards',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),corporateController.getJobCards)
 router.put('/jobcard/update/:id',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),validationMiddleware.validateBody(validator.jobCardSchema),corporateController.updateJobCard)
 
 module.exports = router

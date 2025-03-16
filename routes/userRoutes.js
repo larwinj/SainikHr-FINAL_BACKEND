@@ -18,18 +18,22 @@ router.post('/register',
     userController.signUp
 )
 router.post('/login',validationMiddleware.validateBody(validator.loginSchemaUser),userController.logIn)
+
 router.put('/profile/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"))//under construction
+router.get('/profile',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.getProfile)
+router.post('/profile/video/upload',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),upload.single('video'),userController.uploadProfileVideo)
+router.delete('/profile/video/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.deleteProfileVideo)
+router.get('/profile/video/:userId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran","corporate_enterprise"),userController.getProfileVideo) //logic updation
+router.put('/profile/match',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.corporateIdSchema),userController.matchCorporateProfile) 
+
 router.post('/resume/create',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.nonEmptyBodySchema),userController.createResume)
 router.put('/resume/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.resumeIdSchema),userController.updateResume)
 router.delete('/resume/remove',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.resumeIdSchema),userController.deleteResume)
 router.get('/resume/:resumeId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran","corporate_free"),userController.getResume)
+
 router.get('/jobcards',authMiddleware.authenticateToken,userController.getJobCards)
 router.put('/job/save/:jobId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.saveJob)
 router.delete('/job/remove/:jobId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.removeSavedJob)
 router.get('/job/saved/view',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.getSavedJobs)
-router.post('/profile/video/upload',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),upload.single('video'),userController.uploadProfileVideo)
-router.put('/profile/video/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),upload.single('video'),userController.updateProfileVideo)
-router.put('/profile/video/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.deleteProfileVideo)
-router.get('/profile/video/:userId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran","corporate_enterprise"),userController.getProfileVideo) 
 
 module.exports = router

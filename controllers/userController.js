@@ -3,6 +3,7 @@ const passwordHasher = require("../utils/passwordHasher")
 const dbModel = require("../models/dbModels")
 const JWTToken = require("../utils/jwtToken")
 const { verifyOtp } = require("../utils/otpService")
+const { uploadVideoToS3, deleteVideoFromS3 } = require('../utils/s3Multer')
 
 async function signUp(req,res) {
     try {
@@ -190,6 +191,64 @@ async function getResume(req,res) {
     }
 }
 
+async function getProfile(req, res) {
+    try {
+        const userId = req.user?.userId;
+
+        if (!userId) {
+            return res.status(400).json({ message: "User ID is required!" });
+        }
+
+        const usersCollection = await dbModel.getUsersCollection();
+        const resumesCollection = await dbModel.getResumesCollection()
+        const existingUser = await usersCollection.findOne({ userId });
+
+        if (!existingUser) {
+            return res.status(404).json({ message: "User doesn't exist!" });
+        }
+
+        const { resumes, profile_video_url } = existingUser;
+
+        let latestResume = null;
+        let formattedResumes = [];
+
+        if (resumes && resumes.length > 0) {
+            const resumeIds = resumes.map(resume => resume.resumeId);
+            const resumesData = await resumesCollection.find({ resumeId: { $in: resumeIds } }).toArray();
+
+            const resumeTitleMap = new Map();
+            resumesData.forEach(resume => {
+                resumeTitleMap.set(resume.resumeId, resume.title);
+            });
+
+            const sortedResumes = resumes.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+            const latestResumeId = sortedResumes[0].resumeId;
+            const resumeData = await resumesCollection.findOne({ resumeId: latestResumeId });
+
+            if (resumeData) {
+                const { fileUrl, resumeId, createdAt, updatedAt, _id, ...filteredResume } = resumeData;
+                latestResume = filteredResume;
+            }
+
+            formattedResumes = resumes.map(resume => ({
+                title: resumeTitleMap.get(resume.resumeId) || "Unknown",
+                fileUrl: resume.fileUrl
+            }));
+        }
+
+        const userProfile = {
+            profile_video_url,
+            resumes: formattedResumes,
+            ...latestResume, 
+        };
+
+        return res.status(200).json(userProfile);
+    } catch (error) {
+        console.error("Error fetching profile: ", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
 async function saveJob(req, res) {
     try {
         const jobId = req.params?.jobId;
@@ -307,32 +366,6 @@ async function getSavedJobs(req, res) {
 
 async function uploadProfileVideo(req, res) {
     try {
-
-        const userId = req.user?.userId
-        const usersCollection = await dbModel.getUsersCollection()
-
-        const existingUser = await usersCollection.findOne({ userId })
-
-        if(!existingUser) return res.status(404).json({ message: "User not found!" })
-
-        if (!req.file) return res.status(400).json({ message: "No file uploaded!" })
-    
-        const videoUrl = await uploadVideoToS3(req.file)
-
-        await usersCollection.updateOne(
-            { userId }, 
-            { $set: { profile_video_url: videoUrl } }
-        )
-        
-        res.status(200).json({ message: "Upload successful!" })
-    } catch (error) {
-        console.error("Upload error:", error);
-        res.status(500).json({ message: "Upload failed!" });
-    }
-}
-
-async function updateProfileVideo(req, res) {
-    try {
         const userId = req.user?.userId;
         const usersCollection = await dbModel.getUsersCollection();
 
@@ -341,14 +374,12 @@ async function updateProfileVideo(req, res) {
             return res.status(404).json({ message: "User not found!" });
         }
 
-        const oldVideoUrl = existingUser.profile_video_url;
-
         if (!req.file) {
             return res.status(400).json({ message: "No file uploaded!" });
         }
 
-        if (oldVideoUrl) {
-            const oldVideoKey = oldVideoUrl.split(".com/")[1]; 
+        if (existingUser.profile_video_url) {
+            const oldVideoKey = existingUser.profile_video_url.split(".com/")[1]; 
             await deleteVideoFromS3(oldVideoKey);
         }
 
@@ -359,7 +390,7 @@ async function updateProfileVideo(req, res) {
             { $set: { profile_video_url: videoUrl } }
         );
 
-        res.status(200).json({ message: "Profile video updated successfully!" });
+        res.status(200).json({ message: "Profile video uploaded successfully!" });
     } catch (error) {
         console.error("Upload error:", error);
         res.status(500).json({ message: "Upload failed!" });
@@ -385,7 +416,7 @@ async function deleteProfileVideo(req, res) {
 
         await usersCollection.updateOne(
             { userId },
-            { $pull: { profile_video_url: oldVideoUrl } }
+            { $set: { profile_video_url: null } }
         );
 
         res.status(200).json({ message: "Profile video deleted successfully!" });
@@ -396,54 +427,87 @@ async function deleteProfileVideo(req, res) {
 }
 
 async function getJobCards(req, res) {
-  try {
-      const { userId, jobType, minSalary, maxSalary, location, page = 1, limit = 10 } = req.query;
-      const jobsCollection = await dbModel.getJobsCollection();
-      
-      let query = {}; 
+    try {
+        const { userId, jobType, minSalary, maxSalary, location, page = 1, limit = 10 } = req.query;
+        const jobsCollection = await dbModel.getJobsCollection();
+        const applicationsCollection = await dbModel.getApplicationsCollection();
+        const usersCollection = await dbModel.getUsersCollection();
 
-      if (userId) {
-          query.postedBy = userId;
-      }
+        let query = {};
 
-      if (jobType) {
-          query.jobType = jobType;
-      }
+        if (userId) {
+            query.postedBy = userId;
+        }
 
-      if (minSalary && maxSalary) {
-          query.salary = { $gte: parseInt(minSalary), $lte: parseInt(maxSalary) };
-      } else if (minSalary) {
-          query.salary = { $gte: parseInt(minSalary) };
-      } else if (maxSalary) {
-          query.salary = { $lte: parseInt(maxSalary) };
-      }
+        if (jobType) {
+            query.jobType = jobType;
+        }
 
-      if (location) {
-          query.location = location;
-      }
+        if (minSalary && maxSalary) {
+            query.salary = { $gte: parseInt(minSalary), $lte: parseInt(maxSalary) };
+        } else if (minSalary) {
+            query.salary = { $gte: parseInt(minSalary) };
+        } else if (maxSalary) {
+            query.salary = { $lte: parseInt(maxSalary) };
+        }
 
-      const skip = (parseInt(page) - 1) * parseInt(limit);
+        if (location) {
+            query.location = location;
+        }
 
-      const jobCards = await jobsCollection
-          .find(query)
-          .skip(skip)
-          .limit(parseInt(limit))
-          .toArray();
+        const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      const totalJobs = await jobsCollection.countDocuments(query);
+        const jobCards = await jobsCollection
+            .find(query)
+            .skip(skip)
+            .limit(parseInt(limit))
+            .toArray();
 
-      return res.status(200).json({
-          message: "Job Cards Retrieved Successfully",
-          jobs: jobCards,
-          totalJobs,   
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(totalJobs / parseInt(limit)),
-      });
+        const matchedJobs = new Set();
+        if (userId) {
+            const applications = await applicationsCollection
+                .find({ userId, corporateMatched: true })
+                .toArray();
 
-  } catch (error) {
-      console.error("Error:", error);
-      res.status(500).json({ message: "Internal Server Error" });
-  }
+            applications.forEach(app => matchedJobs.add(app.jobId));
+        }
+
+        const jobIds = jobCards.map(job => job.jobId);
+        const usersWithJobs = await usersCollection
+            .find({ jobs: { $in: jobIds } })
+            .project({ userId: 1, jobs: 1 })
+            .toArray();
+
+        const jobToUserMap = new Map();
+        usersWithJobs.forEach(user => {
+            user.jobs.forEach(jobId => {
+                if (!jobToUserMap.has(jobId)) {
+                    jobToUserMap.set(jobId, []);
+                }
+                jobToUserMap.get(jobId).push(user.userId);
+            });
+        });
+
+        const jobsWithMatchFlag = jobCards.map(job => ({
+            ...job,
+            isMatched: matchedJobs.has(job.jobId),
+            userIds: jobToUserMap.get(job.jobId) || []
+        }));
+
+        const totalJobs = await jobsCollection.countDocuments(query);
+
+        return res.status(200).json({
+            message: "Job Cards Retrieved Successfully",
+            jobs: jobsWithMatchFlag,
+            totalJobs,
+            currentPage: parseInt(page),
+            totalPages: Math.ceil(totalJobs / parseInt(limit)),
+        });
+
+    } catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
 }
 
 async function getProfileVideo(req, res) {
@@ -479,11 +543,67 @@ async function getProfileVideo(req, res) {
     }
 }
 
+async function matchCorporateProfile(req, res) {
+    try {
+        const userId = req.user?.userId;
+        const { jobId, corporateId } = req.body;
 
+        if (!userId || !jobId || !corporateId) {
+            return res.status(400).json({ message: "User ID, Job ID, and Corporate ID are required!" });
+        }
+
+        const usersCollection = await dbModel.getUsersCollection();
+        const applicationsCollection = await dbModel.getApplicationsCollection();
+
+        const existingUser = await usersCollection.findOne({ userId });
+        if (!existingUser) {
+            return res.status(404).json({ message: "User not found!" });
+        }
+
+        const corporateUser = await usersCollection.findOne({ userId: corporateId });
+        if (!corporateUser) {
+            return res.status(404).json({ message: "Corporate user not found!" });
+        }
+
+        
+        let existingApplication = await applicationsCollection.findOne({ userId, corporateId, jobId });
+        
+        if (existingApplication) {
+            if (!existingApplication.corporateMatched) {
+                await applicationsCollection.updateOne(
+                    { userId, corporateId, jobId },
+                    { $set: { corporateMatched: true, updatedAt: new Date() } }
+                );
+            }
+
+            if (existingApplication.userMatched && !existingApplication.corporateMatched) {
+                return res.status(200).json({ message: `User ${userId} and Corporate ${corporateId} are now matched for Job ${jobId}!` });
+            }
+        } else {
+            const newApplication = {
+                applicationId: uuidv4(),
+                userId,
+                corporateId,
+                jobId,
+                userMatched: false,
+                corporateMatched: true,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+            await applicationsCollection.insertOne(newApplication);
+        }
+        return res.status(200).json({ message: "The profile is matched!" });
+
+    } catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
 
 module.exports = { 
     signUp,
     logIn,
+    getProfile,
     createResume,
     updateResume,
     deleteResume,
@@ -493,7 +613,7 @@ module.exports = {
     getSavedJobs,
     uploadProfileVideo,
     getProfileVideo,
-    updateProfileVideo,
     deleteProfileVideo,
-    getJobCards
+    getJobCards,
+    matchCorporateProfile
 }

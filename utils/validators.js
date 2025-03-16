@@ -288,6 +288,17 @@ const resumeIdSchema = Joi.object({
     }),
 }).unknown(true)
 
+const corporateIdSchema = Joi.object({
+    corporateId: Joi.string().required().messages({
+        "string.empty": "CorporateId cannot be empty",
+        "any.required": "CorporateId is required",
+    }),
+    jobId: Joi.string().required().messages({
+        "string.empty": "JobId cannot be empty",
+        "any.required": "JobId is required",
+    }),
+})
+
 const jobCardSchema = Joi.object({
     companyName: Joi.string().min(3).max(100).required().messages({
         'string.base': 'Company name must be a string.',
@@ -425,6 +436,8 @@ const jobCardSchema = Joi.object({
         }),
 })
 
+
+
 module.exports = { 
     registerSchemaUser,
     registerSchemaCorp,
@@ -432,5 +445,6 @@ module.exports = {
     nonEmptyBodySchema,
     resumeIdSchema,
     cropProfileUpdateSchema,
-    jobCardSchema
+    jobCardSchema,
+    corporateIdSchema
 };

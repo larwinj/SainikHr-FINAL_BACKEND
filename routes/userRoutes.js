@@ -24,7 +24,7 @@ router.get('/profile',authMiddleware.authenticateToken,authMiddleware.authorizeR
 router.post('/profile/video/upload',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),upload.single('video'),userController.uploadProfileVideo)
 router.delete('/profile/video/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.deleteProfileVideo)
 router.get('/profile/video/:userId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran","corporate_enterprise"),userController.getProfileVideo) //logic updation
-router.put('/profile/match',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.corporateIdSchema),userController.matchCorporateProfile) 
+router.put('/profile/match',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.JobMatchSchema),userController.matchJob) 
 
 router.post('/resume/create',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.nonEmptyBodySchema),userController.createResume)
 router.put('/resume/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.resumeIdSchema),userController.updateResume)

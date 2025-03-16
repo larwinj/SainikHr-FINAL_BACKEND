@@ -428,15 +428,17 @@ async function deleteProfileVideo(req, res) {
 
 async function getJobCards(req, res) {
     try {
-        const { userId, jobType, minSalary, maxSalary, location, page = 1, limit = 10 } = req.query;
+        const userId = req.user?.userId;
+        const { corporateId, jobType, minSalary, maxSalary, location, page = 1, limit = 10 } = req.query;
+
         const jobsCollection = await dbModel.getJobsCollection();
         const applicationsCollection = await dbModel.getApplicationsCollection();
         const usersCollection = await dbModel.getUsersCollection();
 
         let query = {};
 
-        if (userId) {
-            query.postedBy = userId;
+        if (corporateId) {
+            query.postedBy = corporateId;
         }
 
         if (jobType) {
@@ -463,16 +465,22 @@ async function getJobCards(req, res) {
             .limit(parseInt(limit))
             .toArray();
 
-        const matchedJobs = new Set();
+        const jobIds = jobCards.map(job => job.jobId);
+        let jobApplicationMap = new Map();
+
         if (userId) {
             const applications = await applicationsCollection
-                .find({ userId, corporateMatched: true })
+                .find({ userId, jobId: { $in: jobIds } })
                 .toArray();
 
-            applications.forEach(app => matchedJobs.add(app.jobId));
+            applications.forEach(app => {
+                jobApplicationMap.set(app.jobId, {
+                    userMatched: app.userMatched || false,
+                    corporateMatched: app.corporateMatched || false
+                });
+            });
         }
 
-        const jobIds = jobCards.map(job => job.jobId);
         const usersWithJobs = await usersCollection
             .find({ jobs: { $in: jobIds } })
             .project({ userId: 1, jobs: 1 })
@@ -490,7 +498,10 @@ async function getJobCards(req, res) {
 
         const jobsWithMatchFlag = jobCards.map(job => ({
             ...job,
-            isMatched: matchedJobs.has(job.jobId),
+            match : {
+                userMatched: jobApplicationMap.get(job.jobId)?.userMatched || false,
+                corporateMatched: jobApplicationMap.get(job.jobId)?.corporateMatched || false,
+            },
             userIds: jobToUserMap.get(job.jobId) || []
         }));
 
@@ -543,7 +554,7 @@ async function getProfileVideo(req, res) {
     }
 }
 
-async function matchCorporateProfile(req, res) {
+async function matchJob(req, res) {
     try {
         const userId = req.user?.userId;
         const { jobId, corporateId } = req.body;
@@ -615,5 +626,5 @@ module.exports = {
     getProfileVideo,
     deleteProfileVideo,
     getJobCards,
-    matchCorporateProfile
+    matchJob,
 }

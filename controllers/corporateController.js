@@ -170,10 +170,12 @@ async function subscription(req, res) {
 
 async function getJobCards(req, res) {
     try {
-        const userId = req.user?.userId 
-        const { page = 1, limit = 10 } = req.query;
+        const userId = req.user?.userId;
+        const { page = 1, limit = 10, corporateMatchedOnly } = req.query;
+
         const jobsCollection = await dbModel.getJobsCollection();
         const usersCollection = await dbModel.getUsersCollection();
+        const applicationsCollection = await dbModel.getApplicationsCollection();
 
         if (!userId) {
             return res.status(400).json({ message: "User ID is required!" });
@@ -190,15 +192,31 @@ async function getJobCards(req, res) {
             return res.status(200).json({ message: "No jobs found.", jobs: [] });
         }
 
+        let filteredJobIds = jobIds;
+
+        if (corporateMatchedOnly === "true") {
+            const matchedApplications = await applicationsCollection
+                .find({ userId, corporateMatched: true, jobId: { $in: jobIds } })
+                .toArray();
+
+            filteredJobIds = matchedApplications.map(app => app.jobId);
+
+            if (filteredJobIds.length === 0) {
+                return res.status(200).json({ message: "No matched jobs found.", jobs: [] });
+            }
+        }
+
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
         const jobCards = await jobsCollection
-            .find({ jobId: { $in: jobIds } })
+            .find({ jobId: { $in: filteredJobIds } })
             .skip(skip)
             .limit(parseInt(limit))
             .toArray();
 
-        const totalJobs = jobIds.length;
+        const totalJobs = filteredJobIds.length;
+
+        console.log(totalJobs)
 
         return res.status(200).json({
             message: "Job Cards Retrieved Successfully",
@@ -214,6 +232,103 @@ async function getJobCards(req, res) {
     }
 }
 
+async function matchUserProfileReject(req, res) {
+    try {
+        const corporateId = req.user?.userId; 
+        const { jobId, userId } = req.body;   
+
+        if (!corporateId || !jobId || !userId) {
+            return res.status(400).json({ message: "Corporate ID, Job ID, and User ID are required!" });
+        }
+
+        const usersCollection = await dbModel.getUsersCollection();
+        const applicationsCollection = await dbModel.getApplicationsCollection();
+
+        const corporateUser = await usersCollection.findOne({ userId: corporateId });
+        if (!corporateUser) {
+            return res.status(404).json({ message: "Corporate user not found!" });
+        }
+
+        const existingUser = await usersCollection.findOne({ userId });
+        if (!existingUser) {
+            return res.status(404).json({ message: "User not found!" });
+        }
+
+        let existingApplication = await applicationsCollection.findOne({ userId, corporateId, jobId });
+
+        if (existingApplication) {
+            if (!existingApplication.corporateMatched) {
+                await applicationsCollection.updateOne(
+                    { userId, corporateId, jobId },
+                    { $set: { corporateMatched: false, updatedAt: new Date() } }
+                );
+            }
+        }
+
+        return res.status(200).json({ message: "Corporate matched the user's profile for the job is successfully rejected!" });
+
+    } catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+async function matchUserProfile(req, res) {
+    try {
+        const corporateId = req.user?.userId; 
+        const { jobId, userId } = req.body;   
+
+        if (!corporateId || !jobId || !userId) {
+            return res.status(400).json({ message: "Corporate ID, Job ID, and User ID are required!" });
+        }
+
+        const usersCollection = await dbModel.getUsersCollection();
+        const applicationsCollection = await dbModel.getApplicationsCollection();
+
+        const corporateUser = await usersCollection.findOne({ userId: corporateId });
+        if (!corporateUser) {
+            return res.status(404).json({ message: "Corporate user not found!" });
+        }
+
+        const existingUser = await usersCollection.findOne({ userId });
+        if (!existingUser) {
+            return res.status(404).json({ message: "User not found!" });
+        }
+
+        let existingApplication = await applicationsCollection.findOne({ userId, corporateId, jobId });
+
+        if (existingApplication) {
+            if (!existingApplication.corporateMatched) {
+                await applicationsCollection.updateOne(
+                    { userId, corporateId, jobId },
+                    { $set: { userMatched: true, updatedAt: new Date() } }
+                );
+            }
+
+            if (!existingApplication.userMatched && existingApplication.corporateMatched) {
+                return res.status(200).json({ message: `User ${userId} and Corporate ${corporateId} are now matched for Job ${jobId}!` });
+            }
+        } else {
+            const newApplication = {
+                applicationId: uuidv4(),
+                userId,
+                corporateId,
+                jobId,
+                userMatched: true,
+                corporateMatched: false,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+            await applicationsCollection.insertOne(newApplication);
+        }
+
+        return res.status(200).json({ message: "Corporate matched the user's profile for the job!" });
+
+    } catch (error) {
+        console.error("Error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
 
 module.exports = { 
     profileUpdate,
@@ -221,5 +336,7 @@ module.exports = {
     getJobCards,
     updateJobCard,
     subscription,
-    viewJobCard
+    viewJobCard,
+    matchUserProfile,
+    matchUserProfileReject
 }

@@ -288,7 +288,7 @@ const resumeIdSchema = Joi.object({
     }),
 }).unknown(true)
 
-const corporateIdSchema = Joi.object({
+const JobMatchSchema = Joi.object({
     corporateId: Joi.string().required().messages({
         "string.empty": "CorporateId cannot be empty",
         "any.required": "CorporateId is required",
@@ -446,5 +446,5 @@ module.exports = {
     resumeIdSchema,
     cropProfileUpdateSchema,
     jobCardSchema,
-    corporateIdSchema
+    JobMatchSchema
 };

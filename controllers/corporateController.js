@@ -66,6 +66,7 @@ async function viewJobCard(req,res) {
     try {
         const userId = req.user?.userId
         const data = req.body
+
         const jobsCollection = await dbModel.getJobsCollection()
         const usersCollection = await dbModel.getUsersCollection()
 
@@ -216,8 +217,6 @@ async function getJobCards(req, res) {
 
         const totalJobs = filteredJobIds.length;
 
-        console.log(totalJobs)
-
         return res.status(200).json({
             message: "Job Cards Retrieved Successfully",
             jobs: jobCards,
@@ -330,6 +329,87 @@ async function matchUserProfile(req, res) {
     }
 }
 
+async function getMatchedUsers(req, res) {
+    try {
+        const corporateId = req.user?.userId;
+        const { jobId } = req.params;
+
+        if (!corporateId || !jobId) {
+            return res.status(400).json({ message: "Corporate ID and Job ID are required!" });
+        }
+
+        const usersCollection = await dbModel.getUsersCollection();
+        const applicationsCollection = await dbModel.getApplicationsCollection();
+        const resumesCollection = await dbModel.getResumesCollection();
+
+
+        const matchedApplications = await applicationsCollection
+            .find({ jobId, corporateId, corporateMatched: true })
+            .toArray();
+
+        if (matchedApplications.length === 0) {
+            return res.status(200).json({ message: "No matched users found for this job.", users: [] });
+        }
+
+        const userIds = matchedApplications.map(app => app.userId);
+
+        const matchedUsers = await usersCollection
+            .find({ userId: { $in: userIds } })
+            .toArray();
+
+        const usersWithProfiles = await Promise.all(matchedUsers.map(async (user) => {
+            const { userId, profile_video_url, resumes } = user;
+
+            let latestResume = null;
+            let formattedResumes = [];
+
+            if (resumes && resumes.length > 0) {
+                const resumeIds = resumes.map(resume => resume.resumeId);
+                const resumesData = await resumesCollection
+                    .find({ resumeId: { $in: resumeIds } })
+                    .toArray();
+
+                const resumeTitleMap = new Map();
+                resumesData.forEach(resume => {
+                    resumeTitleMap.set(resume.resumeId, resume.title);
+                });
+
+                const sortedResumes = resumes.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+                const latestResumeId = sortedResumes[0].resumeId;
+
+                const latestResumeData = await resumesCollection.findOne({ resumeId: latestResumeId });
+
+                if (latestResumeData) {
+                    const { fileUrl, resumeId, createdAt, updatedAt, _id, ...filteredResume } = latestResumeData;
+                    latestResume = filteredResume;
+                }
+
+                formattedResumes = resumes.map(resume => ({
+                    title: resumeTitleMap.get(resume.resumeId) || "Unknown",
+                    fileUrl: resume.fileUrl
+                }));
+            }
+
+            return {
+                userId,
+                profile_video_url,
+                resumes: formattedResumes,
+                latestResume
+            };
+        }));
+
+        return res.status(200).json({
+            message: "Matched users retrieved successfully",
+            users: usersWithProfiles
+        });
+
+
+    } catch (error) {
+        console.error("Error fetching matched users: ", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
 module.exports = { 
     profileUpdate,
     addJobCard,
@@ -338,5 +418,6 @@ module.exports = {
     subscription,
     viewJobCard,
     matchUserProfile,
-    matchUserProfileReject
+    matchUserProfileReject,
+    getMatchedUsers
 }

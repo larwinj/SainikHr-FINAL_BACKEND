@@ -588,7 +588,7 @@ async function matchJob(req, res) {
             }
 
             if (existingApplication.userMatched && !existingApplication.corporateMatched) {
-                return res.status(200).json({ message: `User ${userId} and Corporate ${corporateId} are now matched for Job ${jobId}!` });
+                return res.status(200).json({ message: `User ${userId} and Corporate ${corporateId} are now matched for Job ${jobId}!`, isMatched: true });
             }
         } else {
             const newApplication = {
@@ -603,7 +603,7 @@ async function matchJob(req, res) {
             };
             await applicationsCollection.insertOne(newApplication);
         }
-        return res.status(200).json({ message: "The profile is matched!" });
+        return res.status(200).json({ message: "The profile is matched!", isMatched: false});
 
     } catch (error) {
         console.error("Error:", error);

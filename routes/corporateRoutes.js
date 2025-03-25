@@ -8,8 +8,8 @@ const authMiddleware = require('../middlewares/authMiddleware')
 router.put('/subscription',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard"),corporateController.subscription)
 
 router.put('/profile/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),validationMiddleware.validateBody(validator.cropProfileUpdateSchema),corporateController.profileUpdate)
-router.put('/profile/match' ,authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),validationMiddleware.validateBody(validator.JobMatchSchema),corporateController.matchUserProfile) 
-router.put('/profile/match/reject',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),validationMiddleware.validateBody(validator.JobMatchSchema),corporateController.matchUserProfileReject) 
+router.put('/profile/match' ,authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),validationMiddleware.validateBody(validator.userProfileMatchSchema),corporateController.matchUserProfile) 
+router.put('/profile/match/reject',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),validationMiddleware.validateBody(validator.userProfileMatchSchema),corporateController.matchUserProfileReject) 
 
 router.get('/matched/:jobId',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),corporateController.getMatchedUsers) 
 

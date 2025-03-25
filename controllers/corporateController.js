@@ -256,7 +256,7 @@ async function matchUserProfileReject(req, res) {
         let existingApplication = await applicationsCollection.findOne({ userId, corporateId, jobId });
 
         if (existingApplication) {
-            if (!existingApplication.corporateMatched) {
+            if (!existingApplication.userMatched) {
                 await applicationsCollection.updateOne(
                     { userId, corporateId, jobId },
                     { $set: { corporateMatched: false, updatedAt: new Date() } }
@@ -297,7 +297,7 @@ async function matchUserProfile(req, res) {
         let existingApplication = await applicationsCollection.findOne({ userId, corporateId, jobId });
 
         if (existingApplication) {
-            if (!existingApplication.corporateMatched) {
+            if (!existingApplication.userMatched) {
                 await applicationsCollection.updateOne(
                     { userId, corporateId, jobId },
                     { $set: { userMatched: true, updatedAt: new Date() } }

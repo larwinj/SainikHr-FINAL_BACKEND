@@ -1,79 +1,6 @@
 const { v4: uuidv4 } = require("uuid")
-const passwordHasher = require("../utils/passwordHasher")
 const dbModel = require("../models/dbModels")
-const JWTToken = require("../utils/jwtToken")
-const { verifyOtp } = require("../utils/otpService")
 const { uploadVideoToS3, deleteVideoFromS3 } = require('../utils/s3Multer')
-
-async function signUp(req,res) {
-    try {
-        const user = req.body
-        const data = req.user
-        const usersCollection = await dbModel.getUsersCollection()
-        const existingUser = await usersCollection.findOne({ email: user.email })
-
-        if(!verifyOtp(user.email,user.otp,data)) {
-            return res.status(401).json({ message: "Invalid OTP" })
-        }
-
-        if (existingUser) {
-            return res.status(403).json({ message: "User with this email already exists" })
-        }
-
-        const settings = {
-            emailNotification: false,
-            smsNotification: false,
-            darkMode: false
-        }
-
-        const subscription = {
-            resumeViews: 0,
-            subscribedAt: new Date(),
-            subscriptionType: "Free",
-            expireAt: "",
-        }
-
-        user.userId = uuidv4()
-        user.password = await passwordHasher.hashPassword(user.password)
-        user.createdAt = new Date()
-        user.updatedAt = new Date()
-        user.settings = settings
-        delete user.otp
-
-
-        if(user.role !== "veteran") {
-            user.subscription = subscription
-        }
-
-        await usersCollection.insertOne(user);
-
-        return res.status(201).json({ message: "User registered successfully", userId: user.userId, token: JWTToken({ userId: user.userId, role: user.role, resumeViews: 0 },"1d")})
-    } catch (error) {
-        console.error("Error signup : ", error)
-        res.status(500).json({ message: "Internal Server Error" })
-    }
-}
-
-async function logIn(req,res) {
-    try {
-        const user = req.body
-        const usersCollection = await dbModel.getUsersCollection()
-        const existingUser = await usersCollection.findOne({ email: user.email })
-
-        if (!existingUser){
-            return res.status(404).json({ message: "User does not exists!" })
-        } 
-        else if (!await passwordHasher.verifyPassword(user.password,existingUser.password)) {
-            return res.status(401).json({ message: "Invalid Email or Password" })
-        }
-        else {
-            return res.status(200).json({ message: "Login successful", userId: existingUser.userId, token: JWTToken({ userId: existingUser.userId, role: existingUser.role, resumeViews: existingUser?.subscription?.resumeViews },"1d")})
-        }
-    } catch (error) {
-        console.error("Error : ", error)
-        res.status(500).json({ message: "Internal Server Error" })
-    }
-}
 
 async function createResume(req,res) {
     try {
@@ -612,8 +539,6 @@ async function matchJob(req, res) {
 }
 
 module.exports = { 
-    signUp,
-    logIn,
     getProfile,
     createResume,
     updateResume,

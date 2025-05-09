@@ -4,7 +4,8 @@ const express = require('express')
 const cors = require('cors')
 
 const bodyParser = require('body-parser')
-const userRoutes = require('./routes/userRoutes')
+const veteranRoutes = require('./routes/veteranRoutes')
+const adminRoutes = require('./routes/adminRoutes')
 const authRoutes = require('./routes/authRoutes')
 const corporateRoutes = require('./routes/corporateRoutes')
 const passport = require("passport")
@@ -23,8 +24,9 @@ app.use(express.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 app.use(passport.initialize())
 
-app.use("/veteran", userRoutes)
+app.use("/veteran", veteranRoutes)
 app.use("/corporate", corporateRoutes)
+app.use("/admin", adminRoutes)
 app.use("/auth", authRoutes)
 
 const PORT = process.env.PORT || 3060

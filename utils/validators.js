@@ -1,11 +1,11 @@
 const Joi = require("joi")
 
-const registerSchemaUser = Joi.object({
-    fullName: Joi.string().min(3).max(30).required().messages({
-        "string.empty": "fullName cannot be empty",
-        "string.min": "fullName must be at least 3 characters",
-        "string.max": "fullName must be atmost 30 characters",
-        "any.required": "fullName is required",
+const registerSchemaVeteran = Joi.object({
+    userName: Joi.string().min(3).max(30).required().messages({
+        "string.empty": "UserName cannot be empty",
+        "string.min": "UserName must be at least 3 characters",
+        "string.max": "UserName must be atmost 30 characters",
+        "any.required": "UserName is required",
     }),
     email: Joi.string().email().required().messages({
         "string.empty": "Email cannot be empty",
@@ -24,17 +24,17 @@ const registerSchemaUser = Joi.object({
     }),   
     role: Joi.string().required().valid("veteran").messages({
         "string.empty": "Role cannot be empty",
-        "any.only" : "Role is needed to be 'user'",
+        "any.only" : "Role is needed to be 'veteran'",
         "any.required": "Role is required",
     }),
 })
 
-const registerSchemaCorp = Joi.object({
-    fullName:Joi.string().min(3).max(30).required().messages({
-        "string.empty": "fullName cannot be empty",
-        "string.min": "fullName must be at least 3 characters",
-        "string.max": "fullName must be atmost 30 characters",
-        "any.required": "fullName is required",
+const registerSchemaCorporate = Joi.object({
+    userName:Joi.string().min(3).max(30).required().messages({
+        "string.empty": "UserName cannot be empty",
+        "string.min": "UserName must be at least 3 characters",
+        "string.max": "UserName must be atmost 30 characters",
+        "any.required": "UserName is required",
     }),
     email: Joi.string().email()
     .pattern(/^(?!.*@(gmail\.com|yahoo\.com|outlook\.com|hotmail\.com)$).+@.+\..+$/)
@@ -57,9 +57,95 @@ const registerSchemaCorp = Joi.object({
     }),   
     role: Joi.string().required().valid("corporate").messages({
         "string.empty": "Role cannot be empty",
-        "any.only": "Role is needed to be 'corp'",
+        "any.only": "Role is needed to be 'corporate'",
         "any.required": "Role is required",
     }),
+    planName: Joi.string().required().messages({
+        "string.empty": "PlanName cannot be empty",
+        "any.required": "PlanName is required",
+    }),
+})
+
+const registerSchemaAdmin = Joi.object({
+    userName:Joi.string().min(3).max(30).required().messages({
+        "string.empty": "UserName cannot be empty",
+        "string.min": "UserName must be at least 3 characters",
+        "string.max": "UserName must be atmost 30 characters",
+        "any.required": "UserName is required",
+    }),
+    email: Joi.string().email().required().messages({
+        "string.empty": "Email cannot be empty",
+        "string.email": "Invalid email format",
+        "any.required": "Email is required",
+    }),
+    password: Joi.string().min(6).required().messages({
+        "string.empty": "Password cannot be empty",
+        "string.min": "Password must be at least 6 characters",
+        "any.required": "Password is required",
+    }), 
+    role: Joi.string().required().valid("admin").messages({
+        "string.empty": "Role cannot be empty",
+        "any.only": "Role is needed to be 'admin'",
+        "any.required": "Role is required",
+    }),
+    roleName: Joi.string().required().messages({
+        "string.empty": "Rolename cannot be empty",
+        "any.required": "Rolename is required",
+    }),
+    manageAdmins: Joi.boolean().required().messages({
+        'boolean.base': 'manageAdmins must be a boolean value.',
+        'any.required': 'manageAdmins is required.'
+    }),
+    manageUsers: Joi.boolean().required().messages({
+        'boolean.base': 'manageUsers must be a boolean value.',
+        'any.required': 'manageUsers is required.'
+    }),
+    verifyCorporates: Joi.boolean().required().messages({
+        'boolean.base': 'verifyCorporates must be a boolean value.',
+        'any.required': 'verifyCorporates is required.'
+    }),
+    manageJobs: Joi.boolean().required().messages({
+        'boolean.base': 'manageJobs must be a boolean value.',
+        'any.required': 'manageJobs is required.'
+    }),
+    financialManagement:Joi.boolean().required().messages({
+        'boolean.base': 'financialManagement must be a boolean value.',
+        'any.required': 'financialManagement is required.'
+    }),
+    managePlans: Joi.boolean().required().messages({
+        'boolean.base': 'managePlans must be a boolean value.',
+        'any.required': 'managePlans is required.'
+    }),
+})
+
+const loginSchema = Joi.object({
+    email: Joi.string().email().required().messages({
+        "string.empty": "Email cannot be empty",
+        "string.email": "Invalid email format",
+        "any.required": "Email is required",
+    }),
+    password: Joi.string().min(6).required().messages({
+        "string.empty": "Password cannot be empty",
+        "string.min": "Password must be at least 6 characters",
+        "any.required": "Password is required",
+    }) 
+})
+
+const resetPasswordSchema = Joi.object({
+    email: Joi.string().email().required().messages({
+        "string.empty": "Email cannot be empty",
+        "string.email": "Invalid email format",
+        "any.required": "Email is required",
+    }),
+    otp: Joi.string().length(6).required().messages({
+        "string.empty": "OTP cannot be empty",
+        "string.length": "OTP must be exactly 6 characters",
+        "any.required": "OTP is required",
+    }),  
+    password: Joi.string().required().messages({
+        "string.empty": "Password cannot be empty",
+        "any.required": "Password is required",
+    }) 
 })
     
 const cropProfileUpdateSchema = Joi.object({
@@ -250,18 +336,6 @@ const cropProfileUpdateSchema = Joi.object({
         }),
 }).unknown(true)
 
-const loginSchemaUser = Joi.object({
-    email: Joi.string().email().required().messages({
-        "string.empty": "Email cannot be empty",
-        "string.email": "Invalid email format",
-        "any.required": "Email is required",
-    }),
-    password: Joi.string().min(6).required().messages({
-        "string.empty": "Password cannot be empty",
-        "string.min": "Password must be at least 6 characters",
-        "any.required": "Password is required",
-    }) 
-})
 
 //need to update 
 const userProfileUpdateSchema = Joi.object({
@@ -450,9 +524,11 @@ const jobCardSchema = Joi.object({
 
 
 module.exports = { 
-    registerSchemaUser,
-    registerSchemaCorp,
-    loginSchemaUser,
+    registerSchemaVeteran,
+    registerSchemaCorporate,
+    registerSchemaAdmin,
+    loginSchema,
+    resetPasswordSchema,
     nonEmptyBodySchema,
     resumeIdSchema,
     cropProfileUpdateSchema,

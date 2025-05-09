@@ -1,23 +1,17 @@
 const express = require('express')
 const router = express.Router()
 const multer = require("multer")
-const userController = require('../controllers/userController')
+const userController = require('../controllers/veteranController')
 const validationMiddleware = require('../middlewares/validationMiddleware')
 const validator = require('../utils/validators')
 const authMiddleware = require('../middlewares/authMiddleware')
-const corporateController = require('../controllers/corporateController')
+const authController = require('../controllers/authController')
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post('/register',
-    authMiddleware.authenticateToken,
-    (req, res, next) => {
-        const schema = req.body?.role === "veteran" ? validator.registerSchemaUser : validator.registerSchemaCorp
-        validationMiddleware.validateBody(schema)(req, res, next)
-    },
-    userController.signUp
-)
-router.post('/login',validationMiddleware.validateBody(validator.loginSchemaUser),userController.logIn)
+router.post('/register',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.registerSchemaVeteran),authController.signUp)
+router.post('/login',validationMiddleware.validateBody(validator.loginSchema),authController.logIn)
+router.delete('/deleteaccount',authMiddleware.authenticateToken,authController.deleteAccount)
 
 router.put('/profile/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"))//under construction
 router.get('/profile',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.getProfile)

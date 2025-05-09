@@ -26,6 +26,7 @@ function authorizeRoles(...allowedRoles) {
                 return res.status(403).json({ message: "Access Denied: Insufficient permissions" });
             }
 
+            //updation required!
             if (req.user.role === "corporate_free") {
                 if (req.user.resumeViews >= 5) {
                     return res.status(403).json({ message: "Resume view limit reached. Upgrade your plan." });

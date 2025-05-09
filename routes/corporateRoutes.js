@@ -2,8 +2,13 @@ const express = require('express')
 const router = express.Router()
 const corporateController = require('../controllers/corporateController')
 const validationMiddleware = require('../middlewares/validationMiddleware')
+const authController = require('../controllers/authController')
 const validator = require('../utils/validators')
 const authMiddleware = require('../middlewares/authMiddleware')
+
+router.post('/register',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.registerSchemaCorporate),authController.signUp)
+router.post('/login',validationMiddleware.validateBody(validator.loginSchema),authController.logIn)
+router.delete('/deleteaccount',authMiddleware.authenticateToken,authController.deleteAccount)
 
 router.put('/subscription',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard"),corporateController.subscription)
 

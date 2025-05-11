@@ -1,8 +1,9 @@
 const express = require('express')
 const router = express.Router()
 const corporateController = require('../controllers/corporateController')
-const validationMiddleware = require('../middlewares/validationMiddleware')
 const authController = require('../controllers/authController')
+const adminController = require('../controllers/adminController')
+const validationMiddleware = require('../middlewares/validationMiddleware')
 const validator = require('../utils/validators')
 const authMiddleware = require('../middlewares/authMiddleware')
 
@@ -10,6 +11,9 @@ router.post('/register',authMiddleware.authenticateToken,validationMiddleware.va
 router.post('/login',validationMiddleware.validateBody(validator.loginSchema),authController.logIn)
 router.delete('/deleteaccount',authMiddleware.authenticateToken,authController.deleteAccount)
 
+router.get('/plan',adminController.getPlans)
+
+//under this updation required
 router.put('/subscription',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard"),corporateController.subscription)
 
 router.put('/profile/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),validationMiddleware.validateBody(validator.cropProfileUpdateSchema),corporateController.profileUpdate)

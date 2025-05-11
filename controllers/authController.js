@@ -9,9 +9,12 @@ async function signUp(req,res) {
     try {
         const user = req.body
         const data = req.user
+        const planId = req.query?.planId
         const usersCollection = await dbModel.getUsersCollection()
+        const corporatePlansCollection = await dbModel.getCorporatePlansCollection()
         const existingUser = await usersCollection.findOne({ email: user.email })
         let token
+        let plan
 
         if(user.role !== "admin" && !verifyOtp(user.email,user.otp,data)) {
             return res.status(401).json({ message: "Invalid OTP" })
@@ -19,6 +22,13 @@ async function signUp(req,res) {
 
         if (existingUser) {
             return res.status(403).json({ message: "User with this email already exists" })
+        }
+
+        if(planId) {
+            plan = await corporatePlansCollection.findOne({ planId })
+            if(!plan) {
+                return res.status(403).json({ message: "Plan doesn't exists"})
+            }
         }
 
         let userFormat = {
@@ -59,11 +69,11 @@ async function signUp(req,res) {
                 postedJobs: [],
                 verified: false,
                 planData: {
-                    planId:"",
+                    planId,
                     planName: user.planName,
                     resumeViewCount: 0,
                     subscribedAt: new Date(),
-                    expireAt: null,
+                    expireAt: null, //updation required
                 }
             }
         }
@@ -161,7 +171,7 @@ async function deleteAccount(req,res) {
         if (password) {
             const admin = await usersCollection.findOne({ userId: user.userId })
             const existingUser =  await usersCollection.findOne({ userId })
-            if (!admin || admin.role !== "admin" || !existingUser) {
+            if (!admin || admin.role !== "admin" || !admin.access.manageUsers || !existingUser) {
                 return res.status(403).json({ message: "Unauthorized admin credentials" })
             }
             const isAdminPasswordValid = await passwordHasher.verifyPassword(password, admin.password)

@@ -19,19 +19,16 @@ function authenticateToken(req, res, next) {
 function authorizeRoles(...allowedRoles) {
     return async (req, res, next) => {
         try {
-            const userId = req.user?.userId
-            const usersCollection = await getUsersCollection()
-
-            if (!req.user || !allowedRoles.includes(req.user.role)) {
-                return res.status(403).json({ message: "Access Denied: Insufficient permissions" });
-            }
-
-            //updation required!
-            if (req.user.role === "corporate_free") {
-                if (req.user.resumeViews >= 5) {
-                    return res.status(403).json({ message: "Resume view limit reached. Upgrade your plan." });
+            if (req.user && req.user.role === "admin") {
+                const access = req.user || {};
+                const hasPermission = allowedRoles.some(key => access[key]);
+                if (!hasPermission) {
+                    return res.status(403).json({ message: "Access Denied: You do not have required permissions" });
                 }
-                await usersCollection.updateOne({ userId }, { $inc: { resumeViews: 1 } });
+            } else {
+                if (!allowedRoles.includes(req.user.role)) {
+                    return res.status(403).json({ message: "Access Denied: Insufficient role" });
+                }
             }
 
             next();

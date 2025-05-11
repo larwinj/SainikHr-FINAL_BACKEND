@@ -13,11 +13,12 @@ router.post('/register',authMiddleware.authenticateToken,validationMiddleware.va
 router.post('/login',validationMiddleware.validateBody(validator.loginSchema),authController.logIn)
 router.delete('/deleteaccount',authMiddleware.authenticateToken,authController.deleteAccount)
 
-router.put('/profile/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"))//under construction
+//under this updation required
+router.put('/profile/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"))
 router.get('/profile',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.getProfile)
 router.post('/profile/video/upload',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),upload.single('video'),userController.uploadProfileVideo)
 router.delete('/profile/video/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.deleteProfileVideo)
-router.get('/profile/video/:userId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran","corporate_enterprise"),userController.getProfileVideo) //logic updation
+router.get('/profile/video/:userId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran","corporate_enterprise"),userController.getProfileVideo)
 router.put('/profile/match',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.jobMatchSchema),userController.matchJob) 
 
 router.post('/resume/create',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.nonEmptyBodySchema),userController.createResume)

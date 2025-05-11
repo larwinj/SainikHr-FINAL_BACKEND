@@ -20,9 +20,15 @@ async function getApplicationsCollection() {
     return db.collection("Applications")
 }
 
+async function getCorporatePlansCollection() {
+    const { db } =  await connectToDatabase()
+    return db.collection("CorporatePlans")
+}
+
 module.exports = { 
     getUsersCollection,
     getResumesCollection,
     getJobsCollection,
-    getApplicationsCollection
+    getApplicationsCollection,
+    getCorporatePlansCollection
 }

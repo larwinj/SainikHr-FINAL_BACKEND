@@ -1,4 +1,5 @@
 const dbModel = require("../models/dbModels")
+const planAccessCache = require('../utils/planAccessCache')
 const { v4: uuidv4 } = require("uuid")
 
 async function createOrUpdatePlan(req, res) {
@@ -22,8 +23,8 @@ async function createOrUpdatePlan(req, res) {
                     createdAt: existingPlan.createdAt,
                     updatedAt: new Date()
                 }
-                await corporatePlansCollection.replaceOne({ planId }, formattedCorporatePlans);
-                message = "Corporate plan updated successfully";
+                await corporatePlansCollection.replaceOne({ planId }, formattedCorporatePlans)
+                message = "Corporate plan updated successfully"
             } else {
                 return res.status(404).json({ message: "The Plan doesn't exists"})
             }
@@ -40,7 +41,7 @@ async function createOrUpdatePlan(req, res) {
             await corporatePlansCollection.insertOne(formattedCorporatePlans)
             message = "Corporate plan inserted successfully"
         }
-        
+        planAccessCache.loadCorporatePlans()
         return res.status(200).json({ message })
         
     } catch (error) {
@@ -60,6 +61,7 @@ async function deletePlan(req, res) {
         } 
 
         await corporatePlansCollection.deleteOne({ planId })
+        planAccessCache.loadCorporatePlans()
         return res.status(200).json({ message: `The Plan ${existingPlan.planName} is deleted` })
     } catch (error) {
         console.error("Error inserting or updating corporate plan: ", error)
@@ -76,7 +78,7 @@ async function getPlans(req, res) {
         const projection = (!user || user.role !== "admin" || user?.managePlans !== true)
             ? { _id: 0, createdAt: 0, updatedAt: 0 }
             : { _id: 0 }
-
+            
         if (planId) {
             const plan = await corporatePlansCollection.findOne({ planId }, { projection })
             if (!plan) {
@@ -108,10 +110,43 @@ async function getPlans(req, res) {
     }
 }
 
+async function verifyCorporate(req, res) {
+    try {
+        const userId = req.query?.userId
+        const usersCollection = await dbModel.getUsersCollection()
+        const exisitingUser = await usersCollection.findOne({ userId })
+
+        if (!exisitingUser) {
+            return res.status(404).json({ message: "The User doesn't exist"})
+        } 
+
+        if(exisitingUser.verified) {
+            await usersCollection.updateOne(
+                { planId },
+                {
+                    $set: { verified: false }
+                }
+            )
+            return res.status(200).json({ message: "The User is revoked successfully" })
+        } else {
+            await usersCollection.updateOne(
+                { planId },
+                {
+                    $set: { verified: true }
+                }
+            )
+            return res.status(200).json({ message: "The User is verified successfully" })
+        }
+    } catch (error) {
+        console.error("Error verifying user: ", error)
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
 
 
 module.exports = {
     createOrUpdatePlan,
     deletePlan,
-    getPlans
+    getPlans,
+    verifyCorporate
 }

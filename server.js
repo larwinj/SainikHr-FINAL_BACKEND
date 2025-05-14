@@ -8,6 +8,7 @@ const veteranRoutes = require('./routes/veteranRoutes')
 const adminRoutes = require('./routes/adminRoutes')
 const authRoutes = require('./routes/authRoutes')
 const corporateRoutes = require('./routes/corporateRoutes')
+const planAccessCache = require('./utils/planAccessCache')
 const passport = require("passport")
 
 const corsOptions = {
@@ -32,5 +33,6 @@ app.use("/auth", authRoutes)
 const PORT = process.env.PORT || 3060
 
 app.listen(PORT, () => {
+    planAccessCache.loadCorporatePlans()
     console.log(`Listening to the port ${PORT}...`)
 });

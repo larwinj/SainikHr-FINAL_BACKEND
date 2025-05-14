@@ -64,23 +64,52 @@ async function signUp(req,res) {
                 }
             }
         } else {
+            const subscribedAt = new Date()
+            let expireAt = null
+            let planName = null
+
+            if (plan?.duration?.value && plan?.duration?.unit) {
+                planName = plan.planName
+                const durationValue = Number(plan.duration.value)
+                const durationUnit = plan.duration.unit
+                expireAt = new Date(subscribedAt)
+                switch (durationUnit.toLowerCase()) {
+                    case "days":
+                        expireAt.setDate(expireAt.getDate() + durationValue);
+                        break;
+                    case "weeks":
+                        expireAt.setDate(expireAt.getDate() + durationValue * 7);
+                        break;
+                    case "months":
+                        expireAt.setMonth(expireAt.getMonth() + durationValue);
+                        break;
+                    case "years":
+                        expireAt.setFullYear(expireAt.getFullYear() + durationValue);
+                        break;
+                    default:
+                        console.warn("Unsupported duration unit");
+                        expireAt = null;
+                }
+            }
             userFormat = { 
                 ...userFormat,
                 postedJobs: [],
                 verified: false,
                 planData: {
                     planId,
-                    planName: user.planName,
+                    planName,
                     resumeViewCount: 0,
-                    subscribedAt: new Date(),
-                    expireAt: null, //updation required
+                    profileVideoViewCount: 0,
+                    jobPostedCount: 0,
+                    subscribedAt,
+                    expireAt,
                 }
             }
         }
         userFormat.createdAt = new Date()
         userFormat.updatedAt = new Date()
 
-        await usersCollection.insertOne(userFormat);
+        await usersCollection.insertOne(userFormat)
 
         if(userFormat.role === "veteran") {
             token = JWTToken({ 
@@ -91,9 +120,8 @@ async function signUp(req,res) {
             token = JWTToken({
                 userId: userFormat.userId,
                 role: userFormat.role,
-                planName: userFormat.planData.planName,
-                resumeViewCount: userFormat.planData.resumeViewCount,
-                expiredAt: userFormat.planData.expireAt
+                planId: userFormat.planData.planId,
+                expireAt: userFormat.planData.expireAt
             },"1d")
         } else {
             token = JWTToken({ 
@@ -136,9 +164,8 @@ async function logIn(req,res) {
                 token = JWTToken({
                     userId: existingUser.userId,
                     role: existingUser.role,
-                    planName: existingUser.planData.planName,
-                    resumeViewCount: existingUser.planData.resumeViewCount,
-                    expiredAt: existingUser.planData.expireAt
+                    planId: existingUser.planData.planId,
+                    expireAt: existingUser.planData.expireAt
                 },"1d")
             } else {
                 token = JWTToken({ 
@@ -178,7 +205,7 @@ async function deleteAccount(req,res) {
             if (!isAdminPasswordValid) {
                 return res.status(401).json({ message: "Invalid admin password" })
             }
-            await usersCollection.deleteOne({ userId });
+            await usersCollection.deleteOne({ userId })
             await usersCollection.insertOne({ userId, email: existingUser.email, message: "Account deleted by admin" })
             return res.status(200).json({ message: "Account deleted by admin" })
         }

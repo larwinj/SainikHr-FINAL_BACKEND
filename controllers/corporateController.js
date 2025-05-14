@@ -1,6 +1,241 @@
 const { v4: uuidv4 } = require("uuid")
+const JWTToken = require("../utils/jwtToken")
 const dbModel = require("../models/dbModels")
 
+async function subscription(req, res) {
+    try {
+        const userId = req.user?.userId
+        const planId = req.query?.planId
+
+        const usersCollection = await dbModel.getUsersCollection()
+        const corporatePlansCollection = await dbModel.getCorporatePlansCollection()
+        const existingUser = await usersCollection.findOne({ userId })
+        const plan = await corporatePlansCollection.findOne({ planId })
+
+        if(!plan || !existingUser || existingUser.role !== 'corporate') {
+            return res.status(403).json({ message: "Plan or Corporate User doesn't exists"})
+        }
+
+        let expireAt = null
+        let planName = null
+        const subscribedAt = new Date()
+
+        if (plan?.duration?.value && plan?.duration?.unit) {
+            planName = plan.planName
+            const durationValue = Number(plan.duration.value)
+            const durationUnit = plan.duration.unit
+            expireAt = new Date(subscribedAt)
+            switch (durationUnit.toLowerCase()) {
+                case "days":
+                    expireAt.setDate(expireAt.getDate() + durationValue);
+                    break;
+                case "weeks":
+                    expireAt.setDate(expireAt.getDate() + durationValue * 7);
+                    break;
+                case "months":
+                    expireAt.setMonth(expireAt.getMonth() + durationValue);
+                    break;
+                case "years":
+                    expireAt.setFullYear(expireAt.getFullYear() + durationValue);
+                    break;
+                default:
+                    console.warn("Unsupported duration unit");
+                    expireAt = null;
+            }
+        }
+        await usersCollection.updateOne(
+            { userId },
+            {
+                $set: {
+                    planData: {
+                        planId,
+                        planName,
+                        resumeViewCount: 0,
+                        profileVideoViewCount: 0,
+                        jobPostedCount: 0,
+                        subscribedAt,
+                        expireAt,
+                    },
+                    updatedAt: new Date()
+                }
+            }
+        )
+        const token = JWTToken({
+            userId,
+            role: existingUser.role,
+            planId,
+            expireAt
+        },"1d")
+        
+        return res.status(200).json({ message: `Subscription upgraded to ${planName}`, token})
+        
+    } catch (error) {
+        console.error("Error in Subscription:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+async function postOrUpdateJob(req,res) {
+    try {
+        const userId = req.user?.userId
+        const userRole = req.user?.role
+        const data = req.body
+        const jobId = req.query?.jobId
+
+        const jobsCollection = await dbModel.getJobsCollection()
+        const usersCollection = await dbModel.getUsersCollection()
+
+        const existingUser = await usersCollection.findOne({ userId })
+
+        if (!existingUser) {
+            return res.status(404).json({ message: "User not found!" })
+        }
+
+        if (jobId) {
+            const existingJob = await jobsCollection.findOne({ jobId })
+
+            if (!existingJob) {
+                return res.status(404).json({ message: "Job not found!" })
+            }
+
+            const updatedJob = {
+                jobId: existingJob.jobId,
+                ...data,
+                postedMethod: existingJob.postedMethod,
+                data: existingJob.data,
+                createdAt: existingJob.createdAt,
+                updatedAt: new Date()
+            }
+
+            await jobsCollection.replaceOne({ jobId }, updatedJob)
+            return res.status(200).json({ message: "Job updated successfully" })
+        } else {
+            const newJobId = uuidv4()
+            const jobFormatted = {
+                jobId: newJobId,
+                ...data,
+                postedMethod: userRole === "corporate" ? "Private" : "Public",
+                data: {
+                    totalViews: 0,
+                    appliedVeterans: 0,
+                    postedBy: userId
+                },
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+            
+            await jobsCollection.insertOne(jobFormatted)
+            
+            if (userRole === "corporate") {
+                await usersCollection.updateOne(
+                    { userId },
+                    {
+                        $push: { postedJobs: newJobId },
+                        $set: { updatedAt: new Date() },
+                        $inc: { 'planData.jobPostedCount': 1 }
+                    }
+                )
+            }
+            return res.status(201).json({ message: "Job posted successfully" })
+        }
+    } catch (error) {
+        console.error("Error posting job: ", error)
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
+async function deletePostedJob(req, res) {
+    try {
+        const jobId = req.query?.jobId
+        const userId = req.user?.userId
+
+        if (!jobId) {
+            return res.status(400).json({ message: "Job ID is required" })
+        }
+
+        const jobsCollection = await dbModel.getJobsCollection()
+        const usersCollection = await dbModel.getUsersCollection()
+        const existingJob = await jobsCollection.findOne({ jobId })
+
+        if (!existingJob) {
+            return res.status(404).json({ message: "The job doesn't exist" })
+        }
+
+        if (req.user?.role === 'admin' && req.user?.manageJobs) {
+            await jobsCollection.replaceOne({ jobId }, { jobId, message: "Deleted By Admin" })
+            return res.status(200).json({ message: "The Posted Job is deleted Successfully" })
+        }
+
+        if (existingJob?.data?.postedBy !== userId) {
+            return res.status(403).json({ message: "You don't have permission to delete this job post" })
+        }
+
+        await jobsCollection.deleteOne({ jobId })
+        await usersCollection.updateOne(
+            { userId },
+            {
+                $pull: { postedJobs: jobId },
+                $set: { updatedAt: new Date() }
+            }
+        )
+
+        return res.status(200).json({ message: "The Posted Job is deleted Successfully" })
+
+    } catch (error) {
+        console.error("Error deleting job: ", error)
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
+async function getJobs(req, res) {
+    try {
+        const jobId = req.query?.jobId
+        const page = parseInt(req.query?.page) || 1
+        const limit = parseInt(req.query?.limit) || 10
+        const skip = (page - 1) * limit
+
+        const isAdmin = user?.role === "admin" && user?.manageJobs
+
+        const jobsCollection = await dbModel.getJobsCollection()
+        const projection = isAdmin ? {} : { updatedAt: 0, 'data.postedBy': 0, _id: 0 }
+
+        if (jobId) {
+            const job = await jobsCollection.findOne({ jobId }, { projection })
+
+            if (!job) {
+                return res.status(404).json({ message: "Job not found" })
+            }
+            
+            await jobsCollection.updateOne(
+                { jobId },
+                { $inc: { "data.totalViews": 1 } }
+            )
+
+            return res.status(200).json({ job })
+        }
+
+        const totalJobs = await jobsCollection.countDocuments({})
+        const jobs = await jobsCollection
+            .find({}, { projection })
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 })
+            .toArray()
+
+        return res.status(200).json({
+            total: totalJobs,
+            page,
+            pageSize: limit,
+            jobs,
+        })
+
+    } catch (error) {
+        console.error("Error fetching jobs:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+//under this updation required
 async function profileUpdate(req,res) {
     try {
         const userId = req.user?.userId
@@ -32,35 +267,6 @@ async function profileUpdate(req,res) {
     }
 }
 
-async function addJobCard(req,res) {
-    try {
-        const userId = req.user?.userId
-        const data = req.body
-        const jobsCollection = await dbModel.getJobsCollection()
-        const usersCollection = await dbModel.getUsersCollection()
-
-        const existingUser = await usersCollection.findOne({ userId })
-
-        if (!existingUser) {
-            return res.status(404).json({ message: "User not Found!" })
-        }
-
-        data.jobId = uuidv4()
-        data.createdAt = new Date()
-        data.updatedAt = new Date()
-        await jobsCollection.insertOne(data)
-
-        await usersCollection.updateOne(
-            { userId }, 
-            { $push : { jobs: data.jobId }}
-        )
-
-        return res.status(201).json({ message: "Job Card Added Successfully" })
-    } catch (error) {
-        console.error("Error : ", error)
-        res.status(500).json({ message: "Internal Server Error" })
-    }
-}
 
 async function viewJobCard(req,res) {
     try {
@@ -91,82 +297,6 @@ async function viewJobCard(req,res) {
         console.error("Error : ", error)
         res.status(500).json({ message: "Internal Server Error" })
     }
-}
-
-async function updateJobCard(req, res) {
-    try {
-      const jobId = req.params?.id;
-      const updatedData = req.body; 
-  
-      if (!jobId || jobId === "") {
-        return res.status(400).json({ message: "JobId is required" });
-      }
-  
-      const jobsCollection = await dbModel.getJobsCollection();
-      const existingJob = await jobsCollection.findOne({ jobId });
-  
-      if (!existingJob) {
-        return res.status(404).json({ message: "Job not found" });
-      }
-
-      delete updatedData.jobId;
-  
-      await jobsCollection.updateOne(
-        { jobId },
-        {
-          $set: {
-            ...updatedData,
-            updatedAt: new Date(), 
-          },
-        }
-      );
-  
-      return res.status(200).json({ message: "Job Card Updated Successfully" });
-    } catch (error) {
-      console.error("Error:", error);
-      res.status(500).json({ message: "Internal Server Error" });
-    }
-}
-
-async function subscription(req, res) {
-  try {
-      const userId = req.user?.userId;
-      const { newPlan } = req.query; 
-
-      if (!userId) {
-          return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      if (!newPlan || !["standard", "enterprise"].includes(newPlan)) {
-          return res.status(400).json({ message: "Invalid subscription plan" });
-      }
-
-      const usersCollection = await dbModel.getUsersCollection();
-      const user = await usersCollection.findOne({ userId });
-
-      if (!user || !user.role.startsWith("corporate")) {
-          return res.status(403).json({ message: "Access Denied: Only corporate users can upgrade" });
-      }
-
-      const newRole = `corporate_${newPlan}`;
-
-      await usersCollection.updateOne(
-          { userId },
-          {
-            $set: { 
-            role: newRole, 
-            subscribedAt: new Date(),
-            ...(user.role === "corporate_free" && { resumeViews: 0 }) 
-          }
-        }  
-      );
-
-      return res.status(200).json({ message: `Subscription upgraded to ${newPlan}` });
-
-  } catch (error) {
-      console.error("Error:", error);
-      res.status(500).json({ message: "Internal Server Error" });
-  }
 }
 
 async function getJobCards(req, res) {
@@ -411,11 +541,12 @@ async function getMatchedUsers(req, res) {
 }
 
 module.exports = { 
-    profileUpdate,
-    addJobCard,
-    getJobCards,
-    updateJobCard,
     subscription,
+    postOrUpdateJob,
+    deletePostedJob,
+    getJobs,
+    profileUpdate,
+    getJobCards,
     viewJobCard,
     matchUserProfile,
     matchUserProfileReject,

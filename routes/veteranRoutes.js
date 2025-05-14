@@ -6,12 +6,15 @@ const validationMiddleware = require('../middlewares/validationMiddleware')
 const validator = require('../utils/validators')
 const authMiddleware = require('../middlewares/authMiddleware')
 const authController = require('../controllers/authController')
+const corporateController = require('../controllers/corporateController')
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.post('/register',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.registerSchemaVeteran),authController.signUp)
 router.post('/login',validationMiddleware.validateBody(validator.loginSchema),authController.logIn)
 router.delete('/deleteaccount',authMiddleware.authenticateToken,authController.deleteAccount)
+
+router.get('/job',authMiddleware.authenticateToken,corporateController.getJobs)
 
 //under this updation required
 router.put('/profile/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"))

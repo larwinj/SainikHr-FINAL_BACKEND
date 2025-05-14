@@ -143,10 +143,88 @@ async function verifyCorporate(req, res) {
     }
 }
 
+async function deleteAdminAccount(req,res) {
+    try {
+        const user = req.user
+        const userId = req.query?.userId
+
+        const usersCollection = await dbModel.getUsersCollection()
+        
+        const admin = await usersCollection.findOne({ userId: user.userId })
+        const existingUser =  await usersCollection.findOne({ userId })
+
+        if (!admin || admin.role !== "admin" || !admin.access.manageAdmins || !existingUser) {
+            return res.status(403).json({ message: "Unauthorized admin credentials" })
+        }
+
+        await usersCollection.deleteOne({ userId })
+        await usersCollection.insertOne({ userId, email: existingUser.email, message: "Account deleted by admin" })
+        return res.status(200).json({ message: "Account deleted by admin" })
+
+    } catch (error) {
+        console.error("Error Deleting Admin Account : ", error)
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
+async function fetchUserProfiles(req, res) {
+    try {
+        const user = req.user;
+        const targetRole = req.query?.role;
+        const page = parseInt(req.query?.page) || 1;
+        const limit = parseInt(req.query?.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        if (user.role !== 'admin') {
+            return res.status(403).json({ message: "Only admins can access this endpoint." });
+        }
+
+        if (!targetRole) {
+            return res.status(400).json({ message: "Target role is required in query." });
+        }
+
+        const allowedRoleAccess = {
+            admin: user.manageAdmins,
+            corporate: user.manageUsers || user.verifyCorporates,
+            veteran: user.manageUsers
+        };
+
+        if (!allowedRoleAccess[targetRole]) {
+            return res.status(403).json({ message: "You do not have access to this role's profiles." });
+        }
+
+        const usersCollection = await dbModel.getUsersCollection();
+        const query = { role: targetRole };
+
+        const projection = { _id: 0, password: 0 };
+
+        const total = await usersCollection.countDocuments(query);
+        const users = await usersCollection
+            .find(query, { projection })
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        return res.status(200).json({
+            total,
+            page,
+            pageSize: limit,
+            users
+        });
+
+    } catch (error) {
+        console.error("Error fetching user profiles:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
 
 module.exports = {
     createOrUpdatePlan,
     deletePlan,
     getPlans,
-    verifyCorporate
+    verifyCorporate,
+    deleteAdminAccount,
+    fetchUserProfiles
 }

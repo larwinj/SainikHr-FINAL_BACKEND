@@ -10,6 +10,7 @@ const validator = require('../utils/validators')
 router.post('/createadmin',validationMiddleware.validateBody(validator.registerSchemaAdmin),authController.signUp)
 router.post('/login',validationMiddleware.validateBody(validator.loginSchema),authController.logIn)
 router.delete('/account/delete',authMiddleware.authenticateToken,authController.deleteAccount)
+router.put('/profile/update',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.profileUpdateSchema),corporateController.updateProfile)
 
 router.post('/plan/create',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('managePlans'),validationMiddleware.validateBody(validator.corporatePlanSchema),adminController.createOrUpdatePlan)
 router.put('/plan/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('managePlans'),validationMiddleware.validateBody(validator.corporatePlanSchema),adminController.createOrUpdatePlan)
@@ -22,8 +23,10 @@ router.delete('/job/delete',authMiddleware.authenticateToken,authMiddleware.auth
 router.get('/job',authMiddleware.authenticateToken,corporateController.getJobs)
 
 router.delete('/profile/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('manageUsers'),authController.deleteAccount)
+router.get('/profile',authMiddleware.authenticateToken,adminController.fetchUserProfiles)
 
 router.put('/profile/verify',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('verifyCorporates'),adminController.verifyCorporate)
 
+router.delete('/admin/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('manageAdmins'),adminController.deleteAdminAccount)
 
 module.exports = router

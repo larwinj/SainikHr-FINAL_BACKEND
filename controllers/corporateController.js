@@ -100,6 +100,7 @@ async function postOrUpdateJob(req,res) {
 
             const updatedJob = {
                 jobId: existingJob.jobId,
+                companyName: existingJob.companyName,
                 ...data,
                 postedMethod: existingJob.postedMethod,
                 data: existingJob.data,
@@ -113,12 +114,16 @@ async function postOrUpdateJob(req,res) {
             const newJobId = uuidv4()
             const jobFormatted = {
                 jobId: newJobId,
+                companyName: existingUser.companyName,
                 ...data,
                 postedMethod: userRole === "corporate" ? "Private" : "Public",
                 data: {
                     totalViews: 0,
                     appliedVeterans: 0,
-                    postedBy: userId
+                    postedBy: {
+                        userId,
+                        verified: existingUser.verified
+                    }
                 },
                 createdAt: new Date(),
                 updatedAt: new Date()
@@ -189,7 +194,8 @@ async function deletePostedJob(req, res) {
 
 async function getJobs(req, res) {
     try {
-        const jobId = req.query?.jobId
+        const user = req.user
+        const jobIds = req.query?.jobId?.split(',').filter(Boolean) || []
         const page = parseInt(req.query?.page) || 1
         const limit = parseInt(req.query?.limit) || 10
         const skip = (page - 1) * limit
@@ -197,26 +203,29 @@ async function getJobs(req, res) {
         const isAdmin = user?.role === "admin" && user?.manageJobs
 
         const jobsCollection = await dbModel.getJobsCollection()
-        const projection = isAdmin ? {} : { updatedAt: 0, 'data.postedBy': 0, _id: 0 }
+        const projection = isAdmin ? {} : { updatedAt: 0, _id: 0 }
 
-        if (jobId) {
+        if (jobIds.length === 1) {
+            const jobId = jobIds[0]
             const job = await jobsCollection.findOne({ jobId }, { projection })
 
             if (!job) {
                 return res.status(404).json({ message: "Job not found" })
             }
-            
+
             await jobsCollection.updateOne(
                 { jobId },
                 { $inc: { "data.totalViews": 1 } }
-            )
+            );
 
             return res.status(200).json({ job })
         }
 
-        const totalJobs = await jobsCollection.countDocuments({})
+        const query = jobIds.length > 1 ? { jobId: { $in: jobIds } } : {}
+
+        const totalJobs = await jobsCollection.countDocuments(query)
         const jobs = await jobsCollection
-            .find({}, { projection })
+            .find(query, { projection })
             .skip(skip)
             .limit(limit)
             .sort({ createdAt: -1 })
@@ -230,43 +239,42 @@ async function getJobs(req, res) {
         })
 
     } catch (error) {
-        console.error("Error fetching jobs:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error fetching jobs:", error)
+        res.status(500).json({ message: "Internal Server Error" })
     }
 }
 
-//under this updation required
-async function profileUpdate(req,res) {
+async function updateProfile(req,res) {
     try {
         const userId = req.user?.userId
         const data = req.body
         const usersCollection = await dbModel.getUsersCollection()
         const existingUser = await usersCollection.findOne({ userId })
-
+        
         if (!existingUser) {
             return res.status(404).json({ message: "User not Found!" })
         }
 
-        const updatedData = { ...existingUser, ...data }
-        updatedData.updatedAt = new Date()
-
-        if(updatedData.subscriptionPlan === "Basic") {
-            updatedData.trailViewCount = 5
-            updatedData.isTrailUsedUp = false
-        }
-
-        await usersCollection.replaceOne(
+        await usersCollection.updateOne(
             { userId }, 
-            updatedData
+            { 
+                $set: {
+                    userName: data.userName,
+                    'name.firstName': data.firstName,
+                    'name.middleName': data.middleName,
+                    'name.lastName': data.lastName,
+                }
+            }
         )
-
+        
         return res.status(200).json({ message: "Profile updated successfully"})
     } catch (error) {
-        console.error("Error : ", error)
+        console.error("Error updating profile : ", error)
         res.status(500).json({ message: "Internal Server Error" })
     }
 }
 
+//under this updation required
 
 async function viewJobCard(req,res) {
     try {
@@ -545,7 +553,7 @@ module.exports = {
     postOrUpdateJob,
     deletePostedJob,
     getJobs,
-    profileUpdate,
+    updateProfile,
     getJobCards,
     viewJobCard,
     matchUserProfile,

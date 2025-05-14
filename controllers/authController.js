@@ -48,7 +48,8 @@ async function signUp(req,res) {
             userFormat = { 
                 ...userFormat,
                 jobsApplied: [],
-                savedjobs: [],
+                resumes: [],
+                savedJobs: [],
             }
         } else if(user.role === "admin") {
             userFormat = { 
@@ -93,6 +94,7 @@ async function signUp(req,res) {
             }
             userFormat = { 
                 ...userFormat,
+                companyName: user?.companyName,
                 postedJobs: [],
                 verified: false,
                 planData: {

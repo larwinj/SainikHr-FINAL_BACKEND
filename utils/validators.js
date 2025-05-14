@@ -60,6 +60,10 @@ const registerSchemaCorporate = Joi.object({
         "any.only": "Role is needed to be 'corporate'",
         "any.required": "Role is required",
     }),
+    companyName: Joi.string().required().messages({
+        "string.empty": "Company Name cannot be empty",
+        "any.required": "Company Name is required",
+    }),
 })
 
 const registerSchemaAdmin = Joi.object({
@@ -218,12 +222,13 @@ const corporatePlanSchema = Joi.object({
 })
 
 const jobSchema = Joi.object({
-    companyName: Joi.string().min(3).max(100).required().messages({
-        'string.base': 'Company name must be a string.',
-        'string.empty': 'Company name is required.',
-        'string.min': 'Company name must be at least 3 characters long.',
-        'string.max': 'Company name cannot exceed 100 characters.',
-        'any.required': 'Company name is required.',
+
+    role: Joi.string().min(3).max(100).required().messages({
+        'string.base': 'Role must be a string.',
+        'string.empty': 'Role is required.',
+        'string.min': 'Role must be at least 3 characters long.',
+        'string.max': 'Role cannot exceed 100 characters.',
+        'any.required': 'Role is required.',
     }),
 
     email: Joi.string().email({ tlds: { allow: false } }).required().messages({
@@ -354,198 +359,104 @@ const jobSchema = Joi.object({
         }),
 })
 
-//under this schema needs to be updated!
+const profileUpdateSchema = Joi.object({
+    userName: Joi.string().min(3).max(30).required().messages({
+        'string.base': 'Username must be a string.',
+        'string.empty': 'Username is required.',
+        'string.min': 'Username must be at least 3 characters long.',
+        'string.max': 'Username cannot exceed 30 characters.',
+        'any.required': 'Username is required.'
+    }),
+
+    name: Joi.object({
+        firstName: Joi.string().min(1).max(50).required().messages({
+            'string.base': 'First name must be a string.',
+            'string.empty': 'First name is required.',
+            'string.min': 'First name must be at least 1 character.',
+            'string.max': 'First name cannot exceed 50 characters.',
+            'any.required': 'First name is required.'
+        }),
+        middleName: Joi.string().max(50).optional().allow('').messages({
+            'string.base': 'Middle name must be a string.',
+            'string.max': 'Middle name cannot exceed 50 characters.'
+        }),
+        lastName: Joi.string().min(1).max(50).required().messages({
+            'string.base': 'Last name must be a string.',
+            'string.empty': 'Last name is required.',
+            'string.min': 'Last name must be at least 1 character.',
+            'string.max': 'Last name cannot exceed 50 characters.',
+            'any.required': 'Last name is required.'
+        }),
+    }).required().messages({
+        'object.base': 'Name must be an object.',
+        'any.required': 'Name is required.'
+    })
+})
+
+const resumeSchema = Joi.object({
+    title: Joi.string().min(2).max(100).required(),
     
-const cropProfileUpdateSchema = Joi.object({
-    email: Joi.string()
-        .email()
-        .pattern(/^(?!.*@(gmail\.com|yahoo\.com|outlook\.com|hotmail\.com)$).+@.+\..+$/)
+    contact: Joi.object({
+        phone: Joi.string()
+        .pattern(/^\+?\d{10,15}$/)
         .required()
         .messages({
-            "string.empty": "Email cannot be empty",
-            "string.email": "Invalid email format",
-            "any.required": "Email is required",
-            "string.pattern.base": "Only company email addresses are allowed",
+            'string.pattern.base': 'Phone must be a valid number with 10 to 15 digits.',
         }),
-
-    companyName: Joi.string()
-        .min(2)
-        .max(100)
+        email: Joi.string().email({ tlds: { allow: false } }).required(),
+        location: Joi.string().min(2).max(100).required(),
+        pincode: Joi.string()
+        .pattern(/^\d{4,10}$/)
         .required()
         .messages({
-            "string.empty": "Company name cannot be empty",
-            "string.min": "Company name must be at least 2 characters",
-            "string.max": "Company name must be at most 100 characters",
-            "any.required": "Company name is required",
+            'string.pattern.base': 'Pincode must be between 4 and 10 digits.',
         }),
+        linkedin: Joi.string().uri().required(),
+        github: Joi.string().uri().required()
+    }).required(),
+    
+    profile: Joi.string().min(10).max(1000).required(),
+    
+    education: Joi.array().items(
+        Joi.object({
+            years: Joi.string().required(),
+            institution: Joi.string().min(2).max(100).required(),
+            degree: Joi.string().min(2).max(100).required(),
+            percentage: Joi.string().pattern(/^\d{1,3}(\.\d{1,2})?%?$/).required()
+        })
+    ).min(1).required(),
+    
+    skills: Joi.array().items(
+        Joi.string().min(1).max(50)
+    ).min(1).required(),
+    
+    languages: Joi.array().items(
+        Joi.string().min(1).max(50)
+    ).min(1).required(),
+    
+    workExperience: Joi.array().items(
+        Joi.object({
+            company: Joi.string().min(2).max(100).required(),
+            role: Joi.string().min(2).max(100).required(),
+            duration: Joi.string().min(2).max(100).required(),
+            responsibilities: Joi.array().items(
+                Joi.string().min(5).max(300)
+            ).min(1).required()
+        })
+    ).min(0).required(),
+    
+    projects: Joi.array().items(
+        Joi.object({
+            title: Joi.string().min(2).max(100).required(),
+            role: Joi.string().min(2).max(100).required(),
+            year: Joi.string().pattern(/^\d{4}$/).required(),
+            description: Joi.string().min(10).max(1000).required()
+        })
+    ).min(0).required()
+})
 
-    industryType: Joi.string()
-        .min(2)
-        .max(50)
-        .required()
-        .messages({
-            "string.empty": "Industry type cannot be empty",
-            "string.min": "Industry type must be at least 2 characters",
-            "string.max": "Industry type must be at most 50 characters",
-            "any.required": "Industry type is required",
-        }),
+//under this schema needs to be updated!
 
-    companySize: Joi.string()
-        .required()
-        .messages({
-            "string.empty": "Company size cannot be empty",
-            "any.required": "Company size is required",
-        }),
-
-    companyWebsite: Joi.string()
-        .uri()
-        .required()
-        .messages({
-            "string.empty": "Company website cannot be empty",
-            "string.uri": "Invalid website URL format",
-            "any.required": "Company website is required",
-        }),
-
-    headQuartersLocation: Joi.string()
-        .required()
-        .messages({
-            "string.empty": "Headquarters location cannot be empty",
-            "any.required": "Headquarters location is required",
-        }),
-
-    businessRegistrationNumber: Joi.alternatives()
-        .try(
-            Joi.string()
-                .length(21)
-                // .pattern(/^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/) // CIN format
-                .messages({
-                    "string.length": "CIN must be exactly 21 characters",
-                    // "string.pattern.base": "Invalid CIN format",
-                }),
-            Joi.string()
-                .length(15)
-                .pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z]{1}[0-9A-Z]{1}$/) // GST format
-                .messages({
-                    "string.length": "GST must be exactly 15 characters",
-                    "string.pattern.base": "Invalid GST Number format",
-                }),
-            Joi.string()
-                .alphanum()
-                .min(9)
-                .max(15)
-                .messages({
-                    "string.alphanum": "Tax ID must be alphanumeric",
-                    "string.min": "Tax ID must be at least 9 characters",
-                    "string.max": "Tax ID must be at most 15 characters",
-                })
-        )
-        .required()
-        .messages({
-            "any.required": "Business Registration Number (CIN, GST, or Tax ID) is required",
-            "alternatives.match": "Provide a valid CIN, GST, or Tax ID",
-        }),
-
-    companyAddress: Joi.string()
-        .min(5)
-        .max(200)
-        .required()
-        .messages({
-            "string.empty": "Company address cannot be empty",
-            "string.min": "Company address must be at least 5 characters",
-            "string.max": "Company address must be at most 200 characters",
-            "any.required": "Company address is required",
-        }),
-
-    PrimaryRecruitersName: Joi.string()
-        .min(2)
-        .max(100)
-        .required()
-        .messages({
-            "string.empty": "Primary recruiter's name cannot be empty",
-            "string.min": "Primary recruiter's name must be at least 2 characters",
-            "string.max": "Primary recruiter's name must be at most 100 characters",
-            "any.required": "Primary recruiter's name is required",
-        }),
-
-    jobRole: Joi.string()
-        .min(2)
-        .max(100)
-        .required()
-        .messages({
-            "string.empty": "Job role cannot be empty",
-            "string.min": "Job role must be at least 2 characters",
-            "string.max": "Job role must be at most 100 characters",
-            "any.required": "Job role is required",
-        }),
-
-    jobDescription: Joi.string()
-        .min(10)
-        .max(1000)
-        .required()
-        .messages({
-            "string.empty": "Job description cannot be empty",
-            "string.min": "Job description must be at least 10 characters",
-            "string.max": "Job description must be at most 1000 characters",
-            "any.required": "Job description is required",
-        }),
-
-    phoneNumber: Joi.string()
-        .pattern(/^[6-9]\d{9}$/)
-        .messages({
-            "string.empty": "Phone number cannot be empty",
-            "string.pattern.base": "Invalid phone number format (must be 10 digits starting with 6-9)",
-        }),
-
-    landLineNumber: Joi.string()
-        .pattern(/^[0-9]{10}$/)
-        .required()
-        .messages({
-            "string.empty": "Landline number cannot be empty",
-            "string.pattern.base": "Landline number must be 10 digits",
-            "any.required": "Landline number is required",
-        }),
-
-    linkedInProfile: Joi.string()
-        .uri()
-        .messages({
-            "string.empty": "LinkedIn profile cannot be empty",
-            "string.uri": "Invalid LinkedIn profile URL format",
-        }),
-
-    username: Joi.string()
-        .min(3)
-        .max(100)
-        .required()
-        .messages({
-            "string.empty": "Username cannot be empty",
-            "string.min": "Username must be at least 3 characters",
-            "string.max": "Username must be at most 100 characters",
-            "any.required": "Username is required",
-        }),
-
-    password: Joi.string()
-        .min(8)
-        .max(30)
-        .required()
-        .messages({
-            "string.empty": "Password cannot be empty",
-            "string.min": "Password must be at least 8 characters",
-            "string.max": "Password must be at most 30 characters",
-            "any.required": "Password is required",
-        }),
-
-    subscriptionPlan: Joi.string()
-        .valid("Basic", "Premium", "Enterprise")
-        .required()
-        .messages({
-            "string.empty": "Subscription plan cannot be empty",
-            "any.only": "Subscription plan must be one of 'Basic', 'Premium', or 'Enterprise'",
-            "any.required": "Subscription plan is required",
-        }),
-}).unknown(true)
-
-
-//need to update 
 const userProfileUpdateSchema = Joi.object({
     email: Joi.string().email().required().messages({
         "string.empty": "Email cannot be empty",
@@ -604,9 +515,10 @@ module.exports = {
     resetPasswordSchema,
     corporatePlanSchema,
     jobSchema,
+    profileUpdateSchema,
+    resumeSchema,
     nonEmptyBodySchema,
     resumeIdSchema,
-    cropProfileUpdateSchema,
     jobMatchSchema,
     userProfileMatchSchema
 };

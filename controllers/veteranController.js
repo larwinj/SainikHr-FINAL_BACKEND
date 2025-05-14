@@ -2,99 +2,148 @@ const { v4: uuidv4 } = require("uuid")
 const dbModel = require("../models/dbModels")
 const { uploadVideoToS3, deleteVideoFromS3 } = require('../utils/s3Multer')
 
-async function createResume(req,res) {
+async function saveOrRemoveJob(req, res) {
+    try {
+        const jobId = req.query?.jobId
+        const userId = req.user?.userId
+
+        if (!jobId) {
+            return res.status(400).json({ message: "Job ID is required!" })
+        }
+
+        const jobsCollection = await dbModel.getJobsCollection()
+        const usersCollection = await dbModel.getUsersCollection()
+
+        const existingJob = await jobsCollection.findOne({ jobId })
+        if (!existingJob) {
+            return res.status(404).json({ message: "Job doesn't exist!" })
+        }
+
+        const existingUser = await usersCollection.findOne({ userId })
+        if (!existingUser) {
+            return res.status(404).json({ message: "User doesn't exist!" })
+        }
+
+        const isAlreadySaved = existingUser.savedJobs?.some(job => job === jobId)
+
+        if (isAlreadySaved) {
+            await usersCollection.updateOne(
+                { userId },
+                { 
+                    $pull: { savedJobs: jobId },
+                    $set: { updatedAt: new Date() }
+                }
+            )
+            return res.status(200).json({ message: "Job removed from saved list." })
+        } else {
+            if (existingUser.savedJobs?.length >= 20) {
+                return res.status(400).json({ message: "You can save a maximum of 20 jobs." })
+            }
+            await usersCollection.updateOne(
+                { userId },
+                { 
+                    $push: { savedJobs: jobId },
+                    $set: { updatedAt: new Date() }
+                }   
+            )
+            return res.status(201).json({ message: "Job saved successfully!" })
+        }
+
+    } catch (error) {
+        console.error("Error save/remove job: ", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+async function createOrUpdateResume(req,res) {
     try {
         const userId = req.user?.userId
         const data = req.body
+        const resumeId = req.query?.resumeId
+        
         const usersCollection = await dbModel.getUsersCollection()
         const resumesCollection = await dbModel.getResumesCollection()
+        
         const existingUser = await usersCollection.findOne({ userId })
         
-        if (!existingUser){
+        if (!existingUser) {
             return res.status(404).json({ message: "User does not exists!" })
         } 
         
-        data.resumeId = uuidv4()
-        data.createdAt = new Date()
-        data.updatedAt = new Date()
-
-        userResumeData = {
-            resumeId: data.resumeId,
-            uploadedAt: new Date(),
-            fileUrl: ""
+        if (resumeId) {
+            const existingResume = await resumesCollection.findOne({ resumeId })
+            
+            if (!existingResume) {
+                return res.status(404).json({ message: "Resume not found!" })
+            }
+            
+            const updatedResume = {
+                resumeId: existingResume.resumeId,
+                userId: existingResume.userId,
+                name: existingResume.name,
+                ...data,
+                createdAt: existingResume.createdAt,
+                updatedAt: new Date()
+            }
+            
+            await resumesCollection.replaceOne({ resumeId }, updatedResume)
+            return res.status(200).json({ message: "Resume updated successfully" })
+        } else {
+            const newResumeId = uuidv4()
+            const resumeFormat = {
+                resumeId: newResumeId,
+                userId: userId,
+                name: existingUser.name,
+                ...data,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+            
+            await resumesCollection.insertOne(resumeFormat)
+            
+            await usersCollection.updateOne(
+                { userId },
+                {
+                    $push: { resumes: newResumeId },
+                    $set: { updatedAt: new Date() },
+                }
+            )
+            return res.status(201).json({ message: "Resume created successfully" })
         }
-        
-        await resumesCollection.insertOne(data)
-        await usersCollection.updateOne(
-            { userId },
-            { $push: { resumes: userResumeData }, $set: { updatedAt : new Date()} }
-        )
-
-        return res.status(201).json({ message: "Resume added successfully!" })
     } catch (error) {
-        console.error("Error signup : ", error)
+        console.error("Error create/update resume : ", error)
         res.status(500).json({ message: "Internal Server Error" })
     }
 }
 
-
-//updation required
-async function updateResume(req,res) {
-    try {
-        const data = req.body
-        const resumesCollection = await dbModel.getResumesCollection()
-        const existingResume = await resumesCollection.findOne({ resumeId : data.resumeId })
-        
-        if(!existingResume) {
-            return res.status(404).json({ message: "Resume does not exists!" })
-        }
-
-        existingResume.updatedAt = new Date()
-        
-        await resumesCollection.replaceOne(
-            { resumeId: data.resumeId }, 
-            data 
-        )
-        
-        return res.status(200).json({ message: "Resume updated successfully!" });
-    } catch (error) {
-        console.error("Error signup : ", error)
-        res.status(500).json({ message: "Internal Server Error" })
-    }
-}
-
-//updation required
 async function deleteResume(req,res) {
     try {
         const userId = req.user?.userId
-        const data = req.body
+        const resumeId = req.query?.resumeId
 
         const usersCollection = await dbModel.getUsersCollection()
         const resumesCollection = await dbModel.getResumesCollection()
 
         const existingUser = await usersCollection.findOne({ userId })
-        const existingResume = await resumesCollection.findOne({ resumeId : data.resumeId })
+        const existingResume = await resumesCollection.findOne({ resumeId })
 
-        if(!existingUser) {
-            return res.status(404).json({ message: "User does not exists!" })
+        if(!existingUser || !existingResume) {
+            return res.status(404).json({ message: "User or Resume does not exists!" })
         }
 
-        if(!existingResume) {
-            return res.status(404).json({ message: "Resume does not exists!" })
-        }
-
+        await resumesCollection.deleteOne({ resumeId })
         await usersCollection.updateOne(
             { userId }, 
-            { $pull: { resumes: data.resumeId } }
+            { $pull: { resumes: resumeId } }
         )        
-        await resumesCollection.deleteOne({ resumeId: data.resumeId })
-        
         return res.status(200).json({ message: "Resume removed successfully!" });
     } catch (error) {
-        console.error("Error signup : ", error)
+        console.error("Error removing resume : ", error)
         res.status(500).json({ message: "Internal Server Error" })
     }
 }
+
+//under this updation required
 
 async function getResume(req,res) {
     try {
@@ -173,81 +222,6 @@ async function getProfile(req, res) {
     } catch (error) {
         console.error("Error fetching profile: ", error);
         res.status(500).json({ message: "Internal Server Error" });
-    }
-}
-
-async function saveJob(req, res) {
-    try {
-        const jobId = req.params?.jobId;
-        const userId = req.user?.userId;
-
-        if (!jobId) {
-            return res.status(400).json({ message: "Job ID is required!" });
-        }
-
-        const jobsCollection = await dbModel.getJobsCollection();
-        const usersCollection = await dbModel.getUsersCollection();
-
-        const existingJob = await jobsCollection.findOne({ jobId });
-        if (!existingJob) {
-            return res.status(404).json({ message: "Job doesn't exist!" });
-        }
-
-        const existingUser = await usersCollection.findOne({ userId });
-        if (!existingUser) {
-            return res.status(404).json({ message: "User doesn't exist!" });
-        }
-
-        const isAlreadySaved = existingUser.saved_jobs?.some(job => job.jobId === jobId);
-        if (isAlreadySaved) {
-            return res.status(400).json({ message: "Job is already saved!" });
-        }
-
-        const savedJob = { jobId, savedAt: new Date() };
-        await usersCollection.updateOne(
-            { userId },
-            { $push: { saved_jobs: savedJob } }
-        );
-
-        return res.status(201).json({ message: "Job saved successfully!" });
-    } catch (error) {
-        console.error("Error saving job: ", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-}
-
-async function removeSavedJob(req,res) {
-    try {
-        const jobId = req.params?.jobId;
-        const userId = req.user?.userId;
-        
-        const jobsCollection = await dbModel.getJobsCollection();
-        const usersCollection = await dbModel.getUsersCollection();
-        
-        if (!jobId) {
-            return res.status(400).json({ message: "Job Id is required!" });
-        }
-        
-        const existingJob = await jobsCollection.findOne({ jobId });
-        
-        if (!existingJob) {
-            return res.status(404).json({ message: "Job doesn't exist!" });
-        }
-
-        const existingUser = await usersCollection.findOne({ userId });
-
-        if (existingUser) {
-            await usersCollection.updateOne(
-                { userId }, 
-                { $pull: { saved_jobs: { jobId } } }  
-            )
-        } else {
-            return res.status(400).json({ message: "User doesn't exists!" })
-        }
-        return res.status(204).json();
-    } catch (error) {
-        console.error("Error signup : ", error)
-        res.status(500).json({ message: "Internal Server Error" })
     }
 }
 
@@ -539,13 +513,11 @@ async function matchJob(req, res) {
 }
 
 module.exports = { 
+    saveOrRemoveJob,
     getProfile,
-    createResume,
-    updateResume,
+    createOrUpdateResume,
     deleteResume,
     getResume,
-    saveJob,
-    removeSavedJob,
     getSavedJobs,
     uploadProfileVideo,
     getProfileVideo,

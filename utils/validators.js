@@ -455,6 +455,50 @@ const resumeSchema = Joi.object({
     ).min(0).required()
 })
 
+const roleAccessSchema = Joi.object({
+  roleName: Joi.string()
+    .min(3)
+    .max(50)
+    .required()
+    .messages({
+      'string.base': 'Role name must be a string.',
+      'string.empty': 'Role name is required.',
+      'string.min': 'Role name must be at least 3 characters.',
+      'string.max': 'Role name must not exceed 50 characters.',
+      'any.required': 'Role name is required.'
+    }),
+
+  access: Joi.object({
+    manageAdmins: Joi.boolean().required().messages({
+      'boolean.base': 'manageAdmins must be a boolean.',
+      'any.required': 'manageAdmins is required.'
+    }),
+    manageUsers: Joi.boolean().required().messages({
+      'boolean.base': 'manageUsers must be a boolean.',
+      'any.required': 'manageUsers is required.'
+    }),
+    verifyCorporates: Joi.boolean().required().messages({
+      'boolean.base': 'verifyCorporates must be a boolean.',
+      'any.required': 'verifyCorporates is required.'
+    }),
+    manageJobs: Joi.boolean().required().messages({
+      'boolean.base': 'manageJobs must be a boolean.',
+      'any.required': 'manageJobs is required.'
+    }),
+    financialManagement: Joi.boolean().required().messages({
+      'boolean.base': 'financialManagement must be a boolean.',
+      'any.required': 'financialManagement is required.'
+    }),
+    managePlans: Joi.boolean().required().messages({
+      'boolean.base': 'managePlans must be a boolean.',
+      'any.required': 'managePlans is required.'
+    })
+  }).required().messages({
+    'object.base': 'Access must be an object.',
+    'any.required': 'Access is required.'
+  })
+})
+
 //under this schema needs to be updated!
 
 const userProfileUpdateSchema = Joi.object({
@@ -517,6 +561,7 @@ module.exports = {
     jobSchema,
     profileUpdateSchema,
     resumeSchema,
+    roleAccessSchema,
     nonEmptyBodySchema,
     resumeIdSchema,
     jobMatchSchema,

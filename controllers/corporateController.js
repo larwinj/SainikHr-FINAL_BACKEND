@@ -203,7 +203,7 @@ async function getJobs(req, res) {
         const isAdmin = user?.role === "admin" && user?.manageJobs
 
         const jobsCollection = await dbModel.getJobsCollection()
-        const projection = isAdmin ? {} : { updatedAt: 0, _id: 0 }
+        const projection = isAdmin ? { _id: 0 } : { updatedAt: 0, _id: 0 }
 
         if (jobIds.length === 1) {
             const jobId = jobIds[0]

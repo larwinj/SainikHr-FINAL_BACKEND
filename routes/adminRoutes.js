@@ -27,6 +27,7 @@ router.get('/profile',authMiddleware.authenticateToken,adminController.fetchUser
 
 router.put('/profile/verify',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('verifyCorporates'),adminController.verifyCorporate)
 
+router.put('/admin/access',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('manageAdmins'),validationMiddleware.validateBody(validator.roleAccessSchema),adminController.updateAdminAccess)
 router.delete('/admin/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('manageAdmins'),adminController.deleteAdminAccount)
 
 module.exports = router

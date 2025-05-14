@@ -219,6 +219,37 @@ async function fetchUserProfiles(req, res) {
     }
 }
 
+async function updateAdminAccess(req, res) {
+    try {
+        const user = req.user;
+        const userId = req.query?.userId
+        const data = req.body
+
+        const usersCollection = await dbModel.getUsersCollection();
+        const targetAdmin = await usersCollection.findOne({ userId, role: 'admin' });
+
+        if (!targetAdmin) {
+            return res.status(404).json({ message: "Target admin user not found." });
+        }
+
+        await usersCollection.updateOne(
+            { userId },
+            {
+                $set: {
+                    roleName: data.roleName,
+                    access: data.access,
+                    updatedAt: new Date()
+                }
+            }
+        );
+
+        return res.status(200).json({ message: "Admin access updated successfully." });
+
+    } catch (error) {
+        console.error("Error updating admin access:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+}
 
 module.exports = {
     createOrUpdatePlan,
@@ -226,5 +257,6 @@ module.exports = {
     getPlans,
     verifyCorporate,
     deleteAdminAccount,
-    fetchUserProfiles
+    fetchUserProfiles,
+    updateAdminAccess
 }

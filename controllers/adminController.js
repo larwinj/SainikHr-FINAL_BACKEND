@@ -114,29 +114,34 @@ async function verifyCorporate(req, res) {
     try {
         const userId = req.query?.userId
         const usersCollection = await dbModel.getUsersCollection()
-        const exisitingUser = await usersCollection.findOne({ userId })
+        const jobsCollection = await dbModel.getJobsCollection()
 
-        if (!exisitingUser) {
-            return res.status(404).json({ message: "The User doesn't exist"})
-        } 
+        const existingUser = await usersCollection.findOne({ userId })
 
-        if(exisitingUser.verified) {
-            await usersCollection.updateOne(
-                { userId },
-                {
-                    $set: { verified: false }
-                }
-            )
-            return res.status(200).json({ message: "The User is revoked successfully" })
-        } else {
-            await usersCollection.updateOne(
-                { userId },
-                {
-                    $set: { verified: true }
-                }
-            )
-            return res.status(200).json({ message: "The User is verified successfully" })
+        if (!existingUser) {
+            return res.status(404).json({ message: "The User doesn't exist" })
         }
+
+        const newStatus = !existingUser.verified
+
+        await usersCollection.updateOne(
+            { userId },
+            { $set: { verified: newStatus } }
+        )
+
+        if (Array.isArray(existingUser.postedJobs) && existingUser.postedJobs.length > 0) {
+            await jobsCollection.updateMany(
+                { jobId: { $in: existingUser.postedJobs } },
+                { $set: { 'data.postedBy.verified': newStatus } }
+            )
+        }
+
+        const message = newStatus
+            ? "The User is verified successfully"
+            : "The User is revoked successfully"
+
+        return res.status(200).json({ message })
+
     } catch (error) {
         console.error("Error verifying user: ", error)
         res.status(500).json({ message: "Internal Server Error" })

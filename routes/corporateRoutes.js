@@ -20,10 +20,8 @@ router.put('/job/update',authMiddleware.authenticateToken,authMiddleware.authori
 router.delete('/job/delete',authMiddleware.authenticateToken,corporateController.deletePostedJob)
 router.get('/job',authMiddleware.authenticateToken,corporateController.getJobs)
 
+router.put('/match' ,authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.matchUserProfile) 
 //under this updation required
-router.put('/profile/match' ,authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),validationMiddleware.validateBody(validator.userProfileMatchSchema),corporateController.matchUserProfile) 
-router.put('/profile/match/reject',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),validationMiddleware.validateBody(validator.userProfileMatchSchema),corporateController.matchUserProfileReject) 
-
 router.get('/matched/:jobId',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate_free","corporate_standard","corporate_enterprise"),corporateController.getMatchedUsers) 
 
 module.exports = router

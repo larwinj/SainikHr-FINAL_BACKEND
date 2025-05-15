@@ -499,57 +499,6 @@ const roleAccessSchema = Joi.object({
   })
 })
 
-//under this schema needs to be updated!
-
-const userProfileUpdateSchema = Joi.object({
-    email: Joi.string().email().required().messages({
-        "string.empty": "Email cannot be empty",
-        "string.email": "Invalid email format",
-        "any.required": "Email is required",
-    }),
-    password: Joi.string().min(6).required().messages({
-        "string.empty": "Password cannot be empty",
-        "string.min": "Password must be at least 6 characters",
-        "any.required": "Password is required",
-    }),
-})
-
-const nonEmptyBodySchema = Joi.object().min(1).messages({
-    "object.min": "Request body cannot be empty",
-})
-
-const resumeIdSchema = Joi.object({
-    resumeId: Joi.string().required().messages({
-        "string.empty": "ResumeId cannot be empty",
-        "any.required": "ResumeId is required",
-    }),
-}).unknown(true)
-
-const jobMatchSchema = Joi.object({
-    corporateId: Joi.string().required().messages({
-        "string.empty": "CorporateId cannot be empty",
-        "any.required": "CorporateId is required",
-    }),
-    jobId: Joi.string().required().messages({
-        "string.empty": "JobId cannot be empty",
-        "any.required": "JobId is required",
-    }),
-})
-
-const userProfileMatchSchema = Joi.object({
-    userId: Joi.string().required().messages({
-        "string.empty": "userId cannot be empty",
-        "any.required": "userId is required",
-    }),
-    jobId: Joi.string().required().messages({
-        "string.empty": "JobId cannot be empty",
-        "any.required": "JobId is required",
-    }),
-})
-
-
-
-
 
 module.exports = { 
     registerSchemaVeteran,
@@ -562,8 +511,4 @@ module.exports = {
     profileUpdateSchema,
     resumeSchema,
     roleAccessSchema,
-    nonEmptyBodySchema,
-    resumeIdSchema,
-    jobMatchSchema,
-    userProfileMatchSchema
 };

@@ -274,6 +274,67 @@ async function updateProfile(req,res) {
     }
 }
 
+async function getResume(req, res) {
+    try {
+        const user = req.user
+        const resumeId = req.query?.resumeId
+        const page = parseInt(req.query?.page) || 1
+        const limit = parseInt(req.query?.limit) || 10
+        const skip = (page - 1) * limit
+
+        const isAdmin = user?.role === "admin" && user?.manageUsers
+
+        const resumesCollection = await dbModel.getResumesCollection()
+        const usersCollection = await dbModel.getUsersCollection()
+        let projection = {}
+
+        if (isAdmin) {
+
+            projection = { _id: 0 }
+
+        } else if(user.role === 'corporate') {
+
+            projection = { resumeId: 1, userId: 1, name: 1, title: 1, 'contact.location': 1, profile: 1 }
+
+            if(resumeId) {
+                const existingResume = await resumesCollection.findOne({ resumeId })
+
+                if(!existingResume) {
+                    return res.status(404).json({ message: "Resume Not Found" })
+                }
+                await usersCollection.updateOne(
+                    { userId: user.userId },
+                    {
+                        $inc: { 'planData.resumeViewCount': 1 },
+                        $set: { updatedAt: new Date() }
+                    }
+                )
+                return res.status(200).json({ resume: existingResume })
+            }
+        } else if(user.role === 'veteran') {
+            return res.status(200).json({ message: "return the url"})
+        }
+
+        const totalResume = await resumesCollection.countDocuments(query)
+        const resumes = await resumesCollection
+            .find({}, { projection })
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 })
+            .toArray()
+
+        return res.status(200).json({
+            total: totalResume,
+            page,
+            pageSize: limit,
+            resumes,
+        })
+
+    } catch (error) {
+        console.error("Error fetching resume:", error)
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
 //under this updation required
 
 async function viewJobCard(req,res) {
@@ -554,6 +615,7 @@ module.exports = {
     deletePostedJob,
     getJobs,
     updateProfile,
+    getResume,
     getJobCards,
     viewJobCard,
     matchUserProfile,

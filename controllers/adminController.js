@@ -122,7 +122,7 @@ async function verifyCorporate(req, res) {
 
         if(exisitingUser.verified) {
             await usersCollection.updateOne(
-                { planId },
+                { userId },
                 {
                     $set: { verified: false }
                 }
@@ -130,7 +130,7 @@ async function verifyCorporate(req, res) {
             return res.status(200).json({ message: "The User is revoked successfully" })
         } else {
             await usersCollection.updateOne(
-                { planId },
+                { userId },
                 {
                     $set: { verified: true }
                 }

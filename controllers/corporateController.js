@@ -311,8 +311,20 @@ async function getResume(req, res) {
                 )
                 return res.status(200).json({ resume: existingResume })
             }
-        } else if(user.role === 'veteran') {
-            return res.status(200).json({ message: "return the url"})
+        } else if (user.role === 'veteran') {
+            const existingUser = usersCollection.findOne({ userId: user.userId })
+
+            const resumeIds = existingUser?.resumes || [];
+
+            const resumes = await resumesCollection
+                .find({ resumeId: { $in: resumeIds } })
+                .project({ _id: 0, updatedAt: 0 })
+                .toArray();
+
+            return res.status(200).json({
+                message: "Veteran resumes fetched successfully",
+                resumes
+            });
         }
 
         const totalResume = await resumesCollection.countDocuments(query)
@@ -339,32 +351,34 @@ async function getResume(req, res) {
 async function matchUserProfile(req, res) {
     try {
         const corporateId = req.user?.userId
-        const { jobId, userId } = req.query 
+        const { jobId, userId, resumeId } = req.query 
 
-        if (!corporateId || !jobId || !userId) {
-            return res.status(400).json({ message: "Corporate ID, Job ID, and User ID are required!" })
+        if (!corporateId || !jobId || !userId || !resumeId) {
+            return res.status(400).json({ message: "Corporate ID, Job ID, Resume ID, and User ID are required!" })
         }
 
         const usersCollection = await dbModel.getUsersCollection()
         const applicationsCollection = await dbModel.getApplicationsCollection()
         const jobsCollection = await dbModel.getJobsCollection()
+        const resumesCollection = await dbModel.getResumesCollection()
 
         const exisitingCorporateUser = await usersCollection.findOne({ userId: corporateId })
         const existingUser = await usersCollection.findOne({ userId })
         const existingJob = await jobsCollection.findOne({ jobId })
+        const existingResume = await resumesCollection.findOne({ resumeId })
 
-        if (!exisitingCorporateUser || !existingUser || !existingJob) {
-            return res.status(404).json({ message: "Corporate or User or Job not found!" })
+        if (!exisitingCorporateUser || !existingUser || !existingJob || !existingResume) {
+            return res.status(404).json({ message: "Corporate or User or Job or Resume not found!" })
         }
 
-        let existingApplication = await applicationsCollection.findOne({ userId, corporateId, jobId })
+        let existingApplication = await applicationsCollection.findOne({ userId, corporateId, jobId, resumeId })
 
         if (existingApplication) {
             if (!existingApplication.corporateMatched) {
                 const now = new Date(existingApplication.createdAt)
                 const twentyEightDaysLater = new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000)
                 await applicationsCollection.updateOne(
-                    { userId, corporateId, jobId },
+                    { userId, corporateId, jobId, resumeId },
                     { 
                         $set: { 
                             corporateMatched: true, 
@@ -388,8 +402,6 @@ async function matchUserProfile(req, res) {
                 corporateId,
                 jobId,
                 resumeId,
-                companyName: existingJob.companyName,
-                role: existingJob.role,
                 userMatched: false,
                 corporateMatched: true,
                 profileVideoUrl,
@@ -400,187 +412,128 @@ async function matchUserProfile(req, res) {
             };
             await applicationsCollection.insertOne(newApplication)
         }
-
+        
         return res.status(200).json({ message: "Corporate matched the user's profile for the job!" })
-
+        
     } catch (error) {
         console.error("Error matching user:", error)
         res.status(500).json({ message: "Internal server error" })
     }
 }
-//under this updation required
 
-async function viewJobCard(req,res) {
+async function getApplications(req, res) {
     try {
-        const userId = req.user?.userId
-        const data = req.body
+        const user = req.user;
+        const { applicationId, jobId, matched } = req.query;
 
-        const jobsCollection = await dbModel.getJobsCollection()
-        const usersCollection = await dbModel.getUsersCollection()
+        const isVeteran = user.role === 'veteran';
+        const isCorporate = user.role === 'corporate';
 
-        const existingUser = await usersCollection.findOne({ userId })
-
-        if (!existingUser) {
-            return res.status(404).json({ message: "User not Found!" })
-        }
-        
-        data.jobId = uuidv4()
-        data.createdAt = new Date()
-        data.updatedAt = new Date()
-        await jobsCollection.insertOne(data)
-
-        await usersCollection.updateOne(
-            { userId }, 
-            { $push : { jobs: data.jobId }}
-        )
-
-        return res.status(201).json({ message: "Job Card Added Successfully" })
-    } catch (error) {
-        console.error("Error : ", error)
-        res.status(500).json({ message: "Internal Server Error" })
-    }
-}
-
-async function getJobCards(req, res) {
-    try {
-        const userId = req.user?.userId;
-        const { page = 1, limit = 10, corporateMatchedOnly } = req.query;
-
-        const jobsCollection = await dbModel.getJobsCollection();
-        const usersCollection = await dbModel.getUsersCollection();
-        const applicationsCollection = await dbModel.getApplicationsCollection();
-
-        if (!userId) {
-            return res.status(400).json({ message: "User ID is required!" });
+        if (!isVeteran && !isCorporate) {
+            return res.status(403).json({ message: "Unauthorized role." });
         }
 
-        const user = await usersCollection.findOne({ userId });
-
-        if (!user) {
-            return res.status(404).json({ message: "User not found!" });
-        }
-
-        const jobIds = user.jobs || [];
-        if (jobIds.length === 0) {
-            return res.status(200).json({ message: "No jobs found.", jobs: [] });
-        }
-
-        let filteredJobIds = jobIds;
-
-        if (corporateMatchedOnly === "true") {
-            const matchedApplications = await applicationsCollection
-                .find({ userId, corporateMatched: true, jobId: { $in: jobIds } })
-                .toArray();
-
-            filteredJobIds = matchedApplications.map(app => app.jobId);
-
-            if (filteredJobIds.length === 0) {
-                return res.status(200).json({ message: "No matched jobs found.", jobs: [] });
-            }
-        }
-
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-
-        const jobCards = await jobsCollection
-            .find({ jobId: { $in: filteredJobIds } })
-            .skip(skip)
-            .limit(parseInt(limit))
-            .toArray();
-
-        const totalJobs = filteredJobIds.length;
-
-        return res.status(200).json({
-            message: "Job Cards Retrieved Successfully",
-            jobs: jobCards,
-            totalJobs,
-            currentPage: parseInt(page),
-            totalPages: Math.ceil(totalJobs / parseInt(limit)),
-        });
-
-    } catch (error) {
-        console.error("Error fetching job cards: ", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-}
-
-async function getMatchedUsers(req, res) {
-    try {
-        const corporateId = req.user?.userId;
-        const { jobId } = req.params;
-
-        if (!corporateId || !jobId) {
-            return res.status(400).json({ message: "Corporate ID and Job ID are required!" });
-        }
-
-        const usersCollection = await dbModel.getUsersCollection();
         const applicationsCollection = await dbModel.getApplicationsCollection();
         const resumesCollection = await dbModel.getResumesCollection();
+        const jobsCollection = await dbModel.getJobsCollection();
 
+        const filter = {};
 
-        const matchedApplications = await applicationsCollection
-            .find({ jobId, corporateId, corporateMatched: true })
-            .toArray();
-
-        if (matchedApplications.length === 0) {
-            return res.status(200).json({ message: "No matched users found for this job.", users: [] });
+        if (applicationId) {
+            filter.applicationId = applicationId;
         }
 
-        const userIds = matchedApplications.map(app => app.userId);
+        if (jobId) {
+            filter.jobId = jobId;
+        }
 
-        const matchedUsers = await usersCollection
-            .find({ userId: { $in: userIds } })
-            .toArray();
+        if (isVeteran) {
+            filter.userId = user.userId;
+        }
 
-        const usersWithProfiles = await Promise.all(matchedUsers.map(async (user) => {
-            const { userId, profile_video_url, resumes } = user;
+        if (isCorporate) {
+            filter.corporateId = user.userId;
+        }
 
-            let latestResume = null;
-            let formattedResumes = [];
+        if (matched === 'true') {
+            filter.corporateMatched = true;
+            filter.veteranMatched = true;
+        }
 
-            if (resumes && resumes.length > 0) {
-                const resumeIds = resumes.map(resume => resume.resumeId);
-                const resumesData = await resumesCollection
+        const applications = await applicationsCollection.find(filter).toArray();
+
+        if (!applications.length) {
+            return res.status(200).json({ message: "No applications found.", applications: [] });
+        }
+
+        const resumeMap = new Map();
+        const jobMap = new Map();
+
+        if (isCorporate) {
+            const resumeIds = [...new Set(applications.map(app => app.resumeId))];
+            if (resumeIds.length) {
+                const resumes = await resumesCollection
                     .find({ resumeId: { $in: resumeIds } })
+                    .project({ resumeId: 1, name: 1, title: 1, 'contact.location': 1, profile: 1 })
                     .toArray();
+                resumes.forEach(r => resumeMap.set(r.resumeId, r));
+            }
+        }
 
-                const resumeTitleMap = new Map();
-                resumesData.forEach(resume => {
-                    resumeTitleMap.set(resume.resumeId, resume.title);
-                });
+        if (isVeteran) {
+            const jobIds = [...new Set(applications.map(app => app.jobId))];
+            if (jobIds.length) {
+                const jobs = await jobsCollection
+                    .find({ jobId: { $in: jobIds } })
+                    .project({ jobId: 1, role: 1, companyName: 1, address: 1, postedMethod: 1, data: 1 })
+                    .toArray();
+                jobs.forEach(j => jobMap.set(j.jobId, j));
+            }
+        }
 
-                const sortedResumes = resumes.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
-                const latestResumeId = sortedResumes[0].resumeId;
+        const results = applications.map(app => {
+            const result = {
+                applicationId: app.applicationId,
+                userId: app.userId,
+                jobId: app.jobId,
+                corporateId: app.corporateId,
+                resumeId: app.resumeId,
+                userMatched: app.userMatched,
+                corporateMatched: app.corporateMatched,
+                status: app.status,
+                appliedAt: app.createdAt,
+                expiredAt: app.expiredAt
+            };
 
-                const latestResumeData = await resumesCollection.findOne({ resumeId: latestResumeId });
-
-                if (latestResumeData) {
-                    const { fileUrl, resumeId, createdAt, updatedAt, _id, ...filteredResume } = latestResumeData;
-                    latestResume = filteredResume;
-                }
-
-                formattedResumes = resumes.map(resume => ({
-                    title: resumeTitleMap.get(resume.resumeId) || "Unknown",
-                    fileUrl: resume.fileUrl
-                }));
+            if (isCorporate) {
+                const resume = resumeMap.get(app.resumeId);
+                result.resume = resume
+                    ? { ...resume }
+                    : null;
             }
 
-            return {
-                userId,
-                profile_video_url,
-                resumes: formattedResumes,
-                latestResume
-            };
-        }));
+            if (isVeteran) {
+                const job = jobMap.get(app.jobId);
+                result.job = job
+                    ? {
+                        title: job.title,
+                        company: job.company,
+                        location: job.location
+                    }
+                    : null;
+            }
 
-        return res.status(200).json({
-            message: "Matched users retrieved successfully",
-            users: usersWithProfiles
+            return result;
         });
 
+        return res.status(200).json({
+            message: "Applications retrieved successfully",
+            applications: results
+        });
 
     } catch (error) {
-        console.error("Error fetching matched users: ", error);
-        res.status(500).json({ message: "Internal Server Error" });
+        console.error("Error fetching applications:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
     }
 }
 
@@ -591,8 +544,6 @@ module.exports = {
     getJobs,
     updateProfile,
     getResume,
-    getJobCards,
-    viewJobCard,
     matchUserProfile,
-    getMatchedUsers
+    getApplications
 }

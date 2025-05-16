@@ -143,30 +143,132 @@ async function deleteResume(req,res) {
     }
 }
 
-//under this updation required
-
-async function getResume(req,res) {
+async function getSavedJobs(req, res) {
     try {
-        const resumeId = req.params?.resumeId;
-        const resumesCollection = await dbModel.getResumesCollection();
-        
-        let existingResume;
-        
-        if (resumeId) {
-            existingResume = await resumesCollection.findOne({ resumeId });
-            if (!existingResume) {
-                return res.status(404).json({ message: "Resume does not exist!" });
-            }
-        } else {
-            existingResume = await resumesCollection.find().toArray(); 
+        const user = req.user;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        const usersCollection = await dbModel.getUsersCollection();
+        const jobsCollection = await dbModel.getJobsCollection();
+
+        const existingUser = await usersCollection.findOne({ userId: user.userId });
+
+        if (!existingUser) {
+            return res.status(404).json({ message: "User not found" });
         }
-        return res.status(200).json({ data: existingResume });        
+
+        const savedJobIds = existingUser?.savedJobs || [];
+
+        if (savedJobIds.length === 0) {
+            return res.status(404).json({ message: "No saved jobs found" });
+        }
+
+        const totalJobs = await jobsCollection.countDocuments({ jobId: { $in: savedJobIds } });
+
+        const jobs = await jobsCollection
+            .find({ jobId: { $in: savedJobIds } })
+            .project({
+                _id: 0,
+                updatedAt: 0
+            })
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        return res.status(200).json({
+            total: totalJobs,
+            page,
+            pageSize: limit,
+            jobs
+        });
+
     } catch (error) {
-        console.error("Error signup : ", error)
-        res.status(500).json({ message: "Internal Server Error" })
+        console.error("Error fetching saved jobs: ", error);
+        res.status(500).json({ message: "Internal Server Error" });
     }
 }
 
+async function matchCorporateJob(req, res) {
+    try {
+        const userId = req.user?.userId;
+        const { jobId, corporateId, resumeId } = req.query;
+
+        if (!userId || !jobId || !resumeId || !corporateId) {
+            return res.status(400).json({ message: "User ID, Job ID, Resume ID, and Corporate ID are required!" });
+        }
+
+        const usersCollection = await dbModel.getUsersCollection();
+        const applicationsCollection = await dbModel.getApplicationsCollection();
+        const jobsCollection = await dbModel.getJobsCollection();
+        const resumesCollection = await dbModel.getResumesCollection();
+
+        const existingUser = await usersCollection.findOne({ userId });
+        const existingJob = await jobsCollection.findOne({ jobId });
+        const existingResume = await resumesCollection.findOne({ resumeId });
+        const existingCorporate = await usersCollection.findOne({ userId: corporateId });
+
+        if (!existingUser || !existingJob || !existingResume || !existingCorporate) {
+            return res.status(404).json({ message: "User, Job, Resume, or Corporate not found!" });
+        }
+
+        const profileVideoUrl = null;
+
+        let existingApplication = await applicationsCollection.findOne({ userId, jobId, corporateId, resumeId });
+
+        if (existingApplication) {
+            if (!existingApplication.userMatched) {
+                const now = new Date(existingApplication.createdAt);
+                const expiredAt = new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000);
+
+                await applicationsCollection.updateOne(
+                    { userId, jobId, corporateId, resumeId },
+                    {
+                        $set: {
+                            userMatched: true,
+                            updatedAt: new Date(),
+                            status: "Matched",
+                            expiredAt
+                        }
+                    }
+                );
+            }
+
+            if (!existingApplication.userMatched && existingApplication.corporateMatched) {
+                return res.status(200).json({ message: `You are now matched with ${existingCorporate.name} for the job ${existingJob.title}!` });
+            }
+        } else {
+            const now = new Date();
+            const fiveDaysLater = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+            const newApplication = {
+                applicationId: uuidv4(),
+                userId,
+                jobId,
+                corporateId,
+                resumeId,
+                userMatched: true,
+                corporateMatched: false,
+                profileVideoUrl,
+                status: "User Matched",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                expiredAt: fiveDaysLater
+            };
+
+            await applicationsCollection.insertOne(newApplication);
+        }
+
+        return res.status(200).json({ message: "You've successfully matched yourself to the job!" });
+
+    } catch (error) {
+        console.error("Error matching to job: ", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+//under this updation required
 async function getProfile(req, res) {
     try {
         const userId = req.user?.userId;
@@ -224,46 +326,6 @@ async function getProfile(req, res) {
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
-
-async function getSavedJobs(req, res) {
-    try {
-        const userId = req.user?.userId;
-        
-        if (!userId) {
-            return res.status(400).json({ message: "User ID is required!" });
-        }
-
-        const jobsCollection = await dbModel.getJobsCollection();
-        const usersCollection = await dbModel.getUsersCollection();
-
-        const existingUser = await usersCollection.findOne({ userId });
-
-        if (!existingUser) {
-            return res.status(404).json({ message: "User doesn't exist!" });
-        }
-
-        const savedJobs = existingUser.saved_jobs || [];
-
-        if (savedJobs.length === 0) {
-            return res.status(200).json({ data: [], message: "No saved jobs found." });
-        }
-
-        const savedJobIds = savedJobs.map(job => job.jobId);
-
-        const savedJobDetails = await jobsCollection.find({ jobId: { $in: savedJobIds } }).toArray();
-
-        const result = savedJobDetails.map(job => {
-            const savedJob = savedJobs.find(sj => sj.jobId === job.jobId);
-            return { ...job, savedAt: savedJob?.savedAt };
-        });
-
-        return res.status(200).json({ data: result });
-    } catch (error) {
-        console.error("Error fetching saved jobs: ", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-}
-
 
 async function uploadProfileVideo(req, res) {
     try {
@@ -327,101 +389,6 @@ async function deleteProfileVideo(req, res) {
     }
 }
 
-async function getJobCards(req, res) {
-    try {
-        const userId = req.user?.userId;
-        const { corporateId, jobType, minSalary, maxSalary, location, page = 1, limit = 10 } = req.query;
-
-        const jobsCollection = await dbModel.getJobsCollection();
-        const applicationsCollection = await dbModel.getApplicationsCollection();
-        const usersCollection = await dbModel.getUsersCollection();
-
-        let query = {};
-
-        if (corporateId) {
-            query.postedBy = corporateId;
-        }
-
-        if (jobType) {
-            query.jobType = jobType;
-        }
-
-        if (minSalary && maxSalary) {
-            query.salary = { $gte: parseInt(minSalary), $lte: parseInt(maxSalary) };
-        } else if (minSalary) {
-            query.salary = { $gte: parseInt(minSalary) };
-        } else if (maxSalary) {
-            query.salary = { $lte: parseInt(maxSalary) };
-        }
-
-        if (location) {
-            query.location = location;
-        }
-
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-
-        const jobCards = await jobsCollection
-            .find(query)
-            .skip(skip)
-            .limit(parseInt(limit))
-            .toArray();
-
-        const jobIds = jobCards.map(job => job.jobId);
-        let jobApplicationMap = new Map();
-
-        if (userId) {
-            const applications = await applicationsCollection
-                .find({ userId, jobId: { $in: jobIds } })
-                .toArray();
-
-            applications.forEach(app => {
-                jobApplicationMap.set(app.jobId, {
-                    userMatched: app.userMatched || false,
-                    corporateMatched: app.corporateMatched || false
-                });
-            });
-        }
-
-        const usersWithJobs = await usersCollection
-            .find({ jobs: { $in: jobIds } })
-            .project({ userId: 1, jobs: 1 })
-            .toArray();
-
-        const jobToUserMap = new Map();
-        usersWithJobs.forEach(user => {
-            user.jobs.forEach(jobId => {
-                if (!jobToUserMap.has(jobId)) {
-                    jobToUserMap.set(jobId, []);
-                }
-                jobToUserMap.get(jobId).push(user.userId);
-            });
-        });
-
-        const jobsWithMatchFlag = jobCards.map(job => ({
-            ...job,
-            match : {
-                userMatched: jobApplicationMap.get(job.jobId)?.userMatched || false,
-                corporateMatched: jobApplicationMap.get(job.jobId)?.corporateMatched || false,
-            },
-            userIds: jobToUserMap.get(job.jobId) || []
-        }));
-
-        const totalJobs = await jobsCollection.countDocuments(query);
-
-        return res.status(200).json({
-            message: "Job Cards Retrieved Successfully",
-            jobs: jobsWithMatchFlag,
-            totalJobs,
-            currentPage: parseInt(page),
-            totalPages: Math.ceil(totalJobs / parseInt(limit)),
-        });
-
-    } catch (error) {
-        console.error("Error:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-}
-
 async function getProfileVideo(req, res) {
     try {
         const userId = req.user?.userId;
@@ -455,73 +422,15 @@ async function getProfileVideo(req, res) {
     }
 }
 
-async function matchJob(req, res) {
-    try {
-        const userId = req.user?.userId;
-        const { jobId, corporateId } = req.body;
-
-        if (!userId || !jobId || !corporateId) {
-            return res.status(400).json({ message: "User ID, Job ID, and Corporate ID are required!" });
-        }
-
-        const usersCollection = await dbModel.getUsersCollection();
-        const applicationsCollection = await dbModel.getApplicationsCollection();
-
-        const existingUser = await usersCollection.findOne({ userId });
-        if (!existingUser) {
-            return res.status(404).json({ message: "User not found!" });
-        }
-
-        const corporateUser = await usersCollection.findOne({ userId: corporateId });
-        if (!corporateUser) {
-            return res.status(404).json({ message: "Corporate user not found!" });
-        }
-
-        
-        let existingApplication = await applicationsCollection.findOne({ userId, corporateId, jobId });
-        
-        if (existingApplication) {
-            if (!existingApplication.corporateMatched) {
-                await applicationsCollection.updateOne(
-                    { userId, corporateId, jobId },
-                    { $set: { corporateMatched: true, updatedAt: new Date() } }
-                );
-            }
-
-            if (existingApplication.userMatched && !existingApplication.corporateMatched) {
-                return res.status(200).json({ message: `User ${userId} and Corporate ${corporateId} are now matched for Job ${jobId}!`, isMatched: true });
-            }
-        } else {
-            const newApplication = {
-                applicationId: uuidv4(),
-                userId,
-                corporateId,
-                jobId,
-                userMatched: false,
-                corporateMatched: true,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            };
-            await applicationsCollection.insertOne(newApplication);
-        }
-        return res.status(200).json({ message: "The profile is matched!", isMatched: false});
-
-    } catch (error) {
-        console.error("Error:", error);
-        res.status(500).json({ message: "Internal server error" });
-    }
-}
 
 module.exports = { 
     saveOrRemoveJob,
     getProfile,
     createOrUpdateResume,
     deleteResume,
-    getResume,
     getSavedJobs,
     uploadProfileVideo,
     getProfileVideo,
     deleteProfileVideo,
-    getJobCards,
-    matchJob,
+    matchCorporateJob,
 }

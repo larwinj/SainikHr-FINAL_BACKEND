@@ -16,17 +16,21 @@ router.delete('/account/delete',authMiddleware.authenticateToken,authController.
 router.put('/profile/update',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.profileUpdateSchema),corporateController.updateProfile)
 
 router.get('/job',authMiddleware.authenticateToken,corporateController.getJobs)
+router.get('/job/saved',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('veteran'),veteranController.getSavedJobs)
 router.put('/job/save',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('veteran'),veteranController.saveOrRemoveJob)
+router.put('/job/match',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.matchCorporateJob) 
 
+router.get('/resume',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),corporateController.getResume)
 router.post('/resume/create',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.resumeSchema),veteranController.createOrUpdateResume)
 router.put('/resume/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.resumeSchema),veteranController.createOrUpdateResume)
 router.delete('/resume/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.deleteResume)
+
+router.get('/application',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.getApplications) 
 
 //under this updation required
 // router.get('/profile',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.getProfile)
 // router.post('/profile/video/upload',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),upload.single('video'),userController.uploadProfileVideo)
 // router.delete('/profile/video/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.deleteProfileVideo)
 // router.get('/profile/video/:userId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran","corporate_enterprise"),userController.getProfileVideo)
-// router.put('/profile/match',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.jobMatchSchema),userController.matchJob) 
 
 module.exports = router

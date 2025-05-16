@@ -23,11 +23,12 @@ router.delete('/job/delete',authMiddleware.authenticateToken,authMiddleware.auth
 router.get('/job',authMiddleware.authenticateToken,corporateController.getJobs)
 
 router.delete('/profile/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('manageUsers'),authController.deleteAccount)
+router.delete('/resume',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('manageUsers'),corporateController.getResume)
 router.get('/profile',authMiddleware.authenticateToken,adminController.fetchUserProfiles)
 
 router.put('/profile/verify',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('verifyCorporates'),adminController.verifyCorporate)
 
-router.put('/admin/access',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('manageAdmins'),validationMiddleware.validateBody(validator.roleAccessSchema),adminController.updateAdminAccess)
-router.delete('/admin/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('manageAdmins'),adminController.deleteAdminAccount)
+router.put('/access',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('manageAdmins'),validationMiddleware.validateBody(validator.roleAccessSchema),adminController.updateAdminAccess)
+router.delete('/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('manageAdmins'),adminController.deleteAdminAccount)
 
 module.exports = router

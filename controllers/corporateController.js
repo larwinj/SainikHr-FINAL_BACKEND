@@ -359,7 +359,7 @@ async function getResume(req, res) {
                 return res.status(200).json({ resume: existingResume })
             }
         } else if (user.role === 'veteran') {
-            const existingUser = usersCollection.findOne({ userId: user.userId })
+            const existingUser = await usersCollection.findOne({ userId: user.userId })
 
             const resumeIds = existingUser?.resumes || [];
 

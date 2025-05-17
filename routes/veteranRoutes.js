@@ -26,7 +26,7 @@ router.post('/resume/create',authMiddleware.authenticateToken,authMiddleware.aut
 router.put('/resume/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.resumeSchema),veteranController.createOrUpdateResume)
 router.delete('/resume/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.deleteResume)
 
-router.get('/application',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.getApplications) 
+router.get('/application',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),corporateController.getApplications) 
 
 //under this updation required
 // router.post('/profile/video/upload',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),upload.single('video'),userController.uploadProfileVideo)

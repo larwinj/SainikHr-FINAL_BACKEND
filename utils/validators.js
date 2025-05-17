@@ -393,6 +393,44 @@ const profileUpdateSchema = Joi.object({
     })
 })
 
+const profileUpdateCorporateSchema = Joi.object({
+    userName: Joi.string().min(3).max(30).required().messages({
+        'string.base': 'Username must be a string.',
+        'string.empty': 'Username is required.',
+        'string.min': 'Username must be at least 3 characters long.',
+        'string.max': 'Username cannot exceed 30 characters.',
+        'any.required': 'Username is required.'
+    }),
+    companyName: Joi.string().required().messages({
+        'string.base': 'CompanyName must be a string.',
+        'string.empty': 'CompanyName is required.',
+        'any.required': 'CompanyName is required.'
+    }),
+    name: Joi.object({
+        firstName: Joi.string().min(1).max(50).required().messages({
+            'string.base': 'First name must be a string.',
+            'string.empty': 'First name is required.',
+            'string.min': 'First name must be at least 1 character.',
+            'string.max': 'First name cannot exceed 50 characters.',
+            'any.required': 'First name is required.'
+        }),
+        middleName: Joi.string().max(50).optional().allow('').messages({
+            'string.base': 'Middle name must be a string.',
+            'string.max': 'Middle name cannot exceed 50 characters.'
+        }),
+        lastName: Joi.string().min(1).max(50).required().messages({
+            'string.base': 'Last name must be a string.',
+            'string.empty': 'Last name is required.',
+            'string.min': 'Last name must be at least 1 character.',
+            'string.max': 'Last name cannot exceed 50 characters.',
+            'any.required': 'Last name is required.'
+        }),
+    }).required().messages({
+        'object.base': 'Name must be an object.',
+        'any.required': 'Name is required.'
+    })
+})
+
 const resumeSchema = Joi.object({
     title: Joi.string().min(2).max(100).required(),
     
@@ -509,6 +547,7 @@ module.exports = {
     corporatePlanSchema,
     jobSchema,
     profileUpdateSchema,
+    profileUpdateCorporateSchema,
     resumeSchema,
     roleAccessSchema,
 };

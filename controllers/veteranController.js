@@ -268,65 +268,46 @@ async function matchCorporateJob(req, res) {
     }
 }
 
-//under this updation required
 async function getProfile(req, res) {
     try {
-        const userId = req.user?.userId;
-
-        if (!userId) {
-            return res.status(400).json({ message: "User ID is required!" });
-        }
+        const user = req.user;
 
         const usersCollection = await dbModel.getUsersCollection();
-        const resumesCollection = await dbModel.getResumesCollection()
-        const existingUser = await usersCollection.findOne({ userId });
+        const resumesCollection = await dbModel.getResumesCollection();
+
+        let existingUser = await usersCollection.findOne(
+            { userId: user.userId },
+            { projection: { _id: 0, userId: 0, password: 0, jobsApplied: 0, savedJobs: 0 } }
+        );
 
         if (!existingUser) {
-            return res.status(404).json({ message: "User doesn't exist!" });
+            return res.status(404).json({ message: "User not Found!" });
         }
 
-        const { resumes, profile_video_url } = existingUser;
+        const resumes = existingUser?.resumes || [];
 
-        let latestResume = null;
-        let formattedResumes = [];
-
-        if (resumes && resumes.length > 0) {
-            const resumeIds = resumes.map(resume => resume.resumeId);
-            const resumesData = await resumesCollection.find({ resumeId: { $in: resumeIds } }).toArray();
-
-            const resumeTitleMap = new Map();
-            resumesData.forEach(resume => {
-                resumeTitleMap.set(resume.resumeId, resume.title);
-            });
-
-            const sortedResumes = resumes.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
-            const latestResumeId = sortedResumes[0].resumeId;
-            const resumeData = await resumesCollection.findOne({ resumeId: latestResumeId });
-
-            if (resumeData) {
-                const { fileUrl, resumeId, createdAt, updatedAt, _id, ...filteredResume } = resumeData;
-                latestResume = filteredResume;
-            }
-
-            formattedResumes = resumes.map(resume => ({
-                title: resumeTitleMap.get(resume.resumeId) || "Unknown",
-                fileUrl: resume.fileUrl
-            }));
+        if (resumes.length > 0) {
+            const resumeDocs = await resumesCollection
+                .find(
+                    { resumeId: { $in: resumes } },
+                    { projection: { _id: 0, userId: 0 } }
+                )
+                .toArray();
+            existingUser.resumes = resumeDocs;
         }
 
-        const userProfile = {
-            profile_video_url,
-            resumes: formattedResumes,
-            ...latestResume, 
-        };
+        return res.status(200).json({
+            message: "Profile fetched successfully",
+            profile: existingUser
+        });
 
-        return res.status(200).json(userProfile);
     } catch (error) {
-        console.error("Error fetching profile: ", error);
+        console.error("Error fetching profile:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
 
+//under this updation required
 async function uploadProfileVideo(req, res) {
     try {
         const userId = req.user?.userId;

@@ -13,6 +13,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.post('/register',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.registerSchemaVeteran),authController.signUp)
 router.post('/login',validationMiddleware.validateBody(validator.loginSchema),authController.logIn)
 router.delete('/account/delete',authMiddleware.authenticateToken,authController.deleteAccount)
+router.get('/profile',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.getProfile)
 router.put('/profile/update',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.profileUpdateSchema),corporateController.updateProfile)
 
 router.get('/job',authMiddleware.authenticateToken,corporateController.getJobs)
@@ -28,7 +29,6 @@ router.delete('/resume/delete',authMiddleware.authenticateToken,authMiddleware.a
 router.get('/application',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.getApplications) 
 
 //under this updation required
-// router.get('/profile',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.getProfile)
 // router.post('/profile/video/upload',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),upload.single('video'),userController.uploadProfileVideo)
 // router.delete('/profile/video/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.deleteProfileVideo)
 // router.get('/profile/video/:userId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran","corporate_enterprise"),userController.getProfileVideo)

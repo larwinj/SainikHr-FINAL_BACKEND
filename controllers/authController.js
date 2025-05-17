@@ -33,7 +33,6 @@ async function signUp(req,res) {
 
         let userFormat = {
             userId: uuidv4(),
-            userName: user.userName,
             name: {
                 firstName: user.userName,
                 middleName: null,
@@ -47,6 +46,7 @@ async function signUp(req,res) {
         if(user.role === "veteran") {
             userFormat = { 
                 ...userFormat,
+                userName: user.userName,
                 jobsApplied: [],
                 resumes: [],
                 savedJobs: [],
@@ -54,6 +54,7 @@ async function signUp(req,res) {
         } else if(user.role === "admin") {
             userFormat = { 
                 ...userFormat,
+                userName: user.userName,
                 roleName: user.roleName,
                 access:{
                     manageAdmins: user.manageAdmins,
@@ -154,6 +155,8 @@ async function logIn(req,res) {
 
         if (!existingUser){
             return res.status(404).json({ message: "User does not exists!" })
+        } else if (existingUser?.message) {
+            return res.status(403).json({ message: existingUser?.message })
         } else if (!await passwordHasher.verifyPassword(user.password,existingUser.password)) {
             return res.status(401).json({ message: "Invalid Email or Password" })
         } else {

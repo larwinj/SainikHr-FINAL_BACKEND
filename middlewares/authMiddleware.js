@@ -20,6 +20,11 @@ function authenticateToken(req, res, next) {
 function authorizeRoles(...allowedRoles) {
     return async (req, res, next) => {
         try {
+
+            if (allowedRoles.includes(req.user.role)) {
+                return next()
+            }
+
             if (req.user && req.user.role === 'admin') {
                 const access = req.user || {}
                 const hasPermission = allowedRoles.some(key => access[key])
@@ -78,12 +83,7 @@ function authorizeRoles(...allowedRoles) {
 
                 return next()
             } 
-
-            if (!allowedRoles.includes(req.user.role)) {
-                return res.status(403).json({ message: "Access Denied: Insufficient role" })
-            }
-            
-            next()
+            return res.status(403).json({ message: "Access Denied: Unauthorized Role" })
         } catch (error) {
             console.error("Authorization Error:", error)
             res.status(500).json({ message: "Internal Server Error" })

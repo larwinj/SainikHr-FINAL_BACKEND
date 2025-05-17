@@ -244,6 +244,45 @@ async function getJobs(req, res) {
     }
 }
 
+async function getProfile(req, res) {
+    try {
+        const user = req.user;
+
+        const usersCollection = await dbModel.getUsersCollection();
+        const jobsCollection = await dbModel.getJobsCollection();
+
+        let existingUser = await usersCollection.findOne(
+            { userId: user.userId },
+            { projection: { _id: 0, userId: 0, password: 0 } }
+        );
+
+        if (!existingUser) {
+            return res.status(404).json({ message: "User not Found!" });
+        }
+
+        const postedJobs = existingUser?.postedJobs || [];
+
+        if (postedJobs.length > 0) {
+            const jobs = await jobsCollection
+                .find(
+                    { jobId: { $in: postedJobs } },
+                    { projection: { _id: 0, postedMethod: 0, 'data.postedBy': 0 } }
+                )
+                .toArray();
+            existingUser.postedJobs = jobs;
+        }
+
+        return res.status(200).json({
+            message: "Profile fetched successfully",
+            profile: existingUser
+        });
+
+    } catch (error) {
+        console.error("Error fetching profile:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
 async function updateProfile(req,res) {
     try {
         const userId = req.user?.userId
@@ -255,14 +294,22 @@ async function updateProfile(req,res) {
             return res.status(404).json({ message: "User not Found!" })
         }
 
+        let updateQuery = {
+            userName: data.userName,
+            'name.firstName': data.firstName,
+            'name.middleName': data.middleName,
+            'name.lastName': data.lastName,
+        }
+
+        if(req.user.role === 'corporate') {
+            updateQuery.companyName = data.companyName
+        }
+
         await usersCollection.updateOne(
             { userId }, 
             { 
                 $set: {
-                    userName: data.userName,
-                    'name.firstName': data.firstName,
-                    'name.middleName': data.middleName,
-                    'name.lastName': data.lastName,
+                    ...updateQuery
                 }
             }
         )
@@ -544,6 +591,7 @@ module.exports = {
     getJobs,
     updateProfile,
     getResume,
+    getProfile,
     matchUserProfile,
     getApplications
 }

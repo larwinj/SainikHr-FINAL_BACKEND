@@ -340,7 +340,7 @@ async function getResume(req, res) {
             projection = { _id: 0 }
 
         } else if(user.role === 'corporate') {
-
+            
             projection = { resumeId: 1, userId: 1, name: 1, title: 1, 'contact.location': 1, profile: 1 }
             
             if(resumeId) {
@@ -430,7 +430,10 @@ async function matchUserProfile(req, res) {
                         $set: { 
                             corporateMatched: true, 
                             updatedAt: new Date(), 
-                            status: "Matched",
+                            status: {
+                                code: 102,
+                                message: "Mutually Matched"
+                            },
                             expiredAt: twentyEightDaysLater
                         } 
                     }
@@ -452,7 +455,10 @@ async function matchUserProfile(req, res) {
                 userMatched: false,
                 corporateMatched: true,
                 profileVideoUrl,
-                status: "Corporate Matched",
+                status: {
+                    code: 101,
+                    message: "Corporate Matched"
+                },
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 expiredAt: fiveDaysLater
@@ -547,6 +553,7 @@ async function getApplications(req, res) {
                 resumeId: app.resumeId,
                 userMatched: app.userMatched,
                 corporateMatched: app.corporateMatched,
+                profileVideoUrl: app?.profileVideoUrl,
                 status: app.status,
                 appliedAt: app.createdAt,
                 expiredAt: app.expiredAt
@@ -584,6 +591,47 @@ async function getApplications(req, res) {
     }
 }
 
+async function requestProfileVideo(req,res) {
+    try {
+        const user = req.user
+        const applicationId = req.query?.applicationId
+
+        const applicationsCollection = await dbModel.getApplicationsCollection()
+        const usersCollection = await dbModel.getUsersCollection()
+
+        const existingApplication = await usersCollection.findOne({ applicationId })
+        
+        if (!existingApplication) {
+            return res.status(404).json({ message: "Application not Found!" })
+        }
+
+        await applicationsCollection.updateOne(
+            { applicationId },
+            {
+                $set: { 
+                    status: {
+                        code: 103,
+                        message: "Video Requested"
+                    },
+                    updatedAt: new Date()
+                }
+            }
+        )
+        await usersCollection.updateOne(
+            { userId: user.userId },
+            {
+                $inc: { 'planData.profileVideoViewCount': 1 },
+                $set: { updatedAt: new Date() }
+            }
+        )
+        
+        return res.status(200).json({ message: "Video Requested successfully"})
+    } catch (error) {
+        console.error("Error requesting video : ", error)
+        res.status(500).json({ message: "Internal Server Error" })
+    }
+}
+
 module.exports = { 
     subscription,
     postOrUpdateJob,
@@ -593,5 +641,6 @@ module.exports = {
     getResume,
     getProfile,
     matchUserProfile,
-    getApplications
+    getApplications,
+    requestProfileVideo
 }

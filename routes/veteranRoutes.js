@@ -27,10 +27,7 @@ router.put('/resume/update',authMiddleware.authenticateToken,authMiddleware.auth
 router.delete('/resume/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.deleteResume)
 
 router.get('/application',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.getApplications) 
-
-//under this updation required
-// router.post('/profile/video/upload',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),upload.single('video'),userController.uploadProfileVideo)
-// router.delete('/profile/video/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),userController.deleteProfileVideo)
-// router.get('/profile/video/:userId?',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran","corporate_enterprise"),userController.getProfileVideo)
+router.post('/request/video/accept',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),upload.single('video'),veteranController.acceptRequestAndUploadVideo)
+router.put('/request/video/reject',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.rejectRequest)
 
 module.exports = router

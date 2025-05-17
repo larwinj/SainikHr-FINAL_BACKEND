@@ -24,5 +24,6 @@ router.get('/job',authMiddleware.authenticateToken,corporateController.getJobs)
 router.get('/resume',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("resume"),corporateController.getResume) 
 router.put('/match',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.matchUserProfile) 
 router.get('/application',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.getApplications) 
+router.put('/request/video',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.requestProfileVideo) 
 
 module.exports = router

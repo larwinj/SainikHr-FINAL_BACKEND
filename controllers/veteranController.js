@@ -229,7 +229,10 @@ async function matchCorporateJob(req, res) {
                         $set: {
                             userMatched: true,
                             updatedAt: new Date(),
-                            status: "Matched",
+                            status: {
+                                code: 102,
+                                message: "Mutually Matched"
+                            },
                             expiredAt
                         }
                     }
@@ -251,7 +254,10 @@ async function matchCorporateJob(req, res) {
                 userMatched: true,
                 corporateMatched: false,
                 profileVideoUrl,
-                status: "User Matched",
+                status: {
+                    code: 100,
+                    message: "User Matched"
+                },
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 expiredAt: fiveDaysLater
@@ -307,102 +313,75 @@ async function getProfile(req, res) {
     }
 }
 
-//under this updation required
-async function uploadProfileVideo(req, res) {
+async function acceptRequestAndUploadVideo(req, res) {
     try {
-        const userId = req.user?.userId;
-        const usersCollection = await dbModel.getUsersCollection();
+        const user = req.user;
+        const applicationId = req.query?.applicationId
 
-        const existingUser = await usersCollection.findOne({ userId });
-        if (!existingUser) {
-            return res.status(404).json({ message: "User not found!" });
+        const applicationsCollection = await dbModel.getApplicationsCollection()
+        const existingApplication = await applicationsCollection.findOne({ applicationId });
+
+        if (!existingApplication) {
+            return res.status(404).json({ message: "Application not found!" });
         }
 
         if (!req.file) {
             return res.status(400).json({ message: "No file uploaded!" });
         }
 
-        if (existingUser.profile_video_url) {
-            const oldVideoKey = existingUser.profile_video_url.split(".com/")[1]; 
+        if (existingApplication.profileVideoUrl) {
+            const oldVideoKey = existingApplication.profileVideoUrl.split(".com/")[1]; 
             await deleteVideoFromS3(oldVideoKey);
         }
 
         const videoUrl = await uploadVideoToS3(req.file);
 
-        await usersCollection.updateOne(
-            { userId },
-            { $set: { profile_video_url: videoUrl } }
+        await applicationsCollection.updateOne(
+            { applicationId },
+            { $set: { 
+                profileVideoUrl: videoUrl,
+                status: {
+                    code: 105,
+                    message: "Request Accepted"
+                }
+            } }
         );
 
-        res.status(200).json({ message: "Profile video uploaded successfully!" });
+        res.status(200).json({ message: "Profile video uploaded and Request Accepted successfully!" });
     } catch (error) {
-        console.error("Upload error:", error);
-        res.status(500).json({ message: "Upload failed!" });
-    }
-}
-
-async function deleteProfileVideo(req, res) {
-    try {
-        const userId = req.user?.userId;
-        const usersCollection = await dbModel.getUsersCollection();
-
-        const existingUser = await usersCollection.findOne({ userId });
-        if (!existingUser) {
-            return res.status(404).json({ message: "User not found!" });
-        }
-
-        const oldVideoUrl = existingUser.profile_video_url;
-
-        if (oldVideoUrl) {
-            const oldVideoKey = oldVideoUrl.split(".com/")[1]; 
-            await deleteVideoFromS3(oldVideoKey);
-        }
-
-        await usersCollection.updateOne(
-            { userId },
-            { $set: { profile_video_url: null } }
-        );
-
-        res.status(200).json({ message: "Profile video deleted successfully!" });
-    } catch (error) {
-        console.error("Error:", error);
+        console.error("Upload or accept error:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
 
-async function getProfileVideo(req, res) {
+async function rejectRequest(req, res) {
     try {
-        const userId = req.user?.userId;
-        const anotherUserId = req.params?.userId;
-        const usersCollection = await dbModel.getUsersCollection();
+        const user = req.user;
+        const applicationId = req.query?.applicationId
 
-        let existingUser;
+        const applicationsCollection = await dbModel.getApplicationsCollection()
+        const existingApplication = await applicationsCollection.findOne({ applicationId });
 
-        if (!anotherUserId) {
-            existingUser = await usersCollection.findOne({ userId });
-        } else {
-            existingUser = await usersCollection.findOne({ userId: anotherUserId }); 
+        if (!existingApplication) {
+            return res.status(404).json({ message: "Application not found!" });
         }
 
-        if (!existingUser) {
-            return res.status(404).json({ message: "User not found!" });
-        }
+        await applicationsCollection.updateOne(
+            { applicationId },
+            { $set: { 
+                status: {
+                    code: 104,
+                    message: "Request Rejected"
+                }
+            } }
+        );
 
-        if (!existingUser.profile_video_url) {
-            return res.status(404).json({ message: "No profile video found!" });
-        }
-
-        res.status(200).json({ 
-            message: "Profile video fetched successfully!", 
-            profileVideoUrl: existingUser.profile_video_url
-        });
-
+        res.status(200).json({ message: "Request rejected successfully!" });
     } catch (error) {
-        console.error("Error fetching profile video:", error);
-        res.status(500).json({ message: "Internal server error" });
+        console.error("Request reject error:", error);
+        res.status(500).json({ message: "Internal Server Error" });
     }
 }
-
 
 module.exports = { 
     saveOrRemoveJob,
@@ -410,8 +389,7 @@ module.exports = {
     createOrUpdateResume,
     deleteResume,
     getSavedJobs,
-    uploadProfileVideo,
-    getProfileVideo,
-    deleteProfileVideo,
     matchCorporateJob,
+    acceptRequestAndUploadVideo,
+    rejectRequest
 }

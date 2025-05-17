@@ -17,8 +17,8 @@ router.get('/profile',authMiddleware.authenticateToken,authMiddleware.authorizeR
 router.put('/profile/update',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.profileUpdateSchema),corporateController.updateProfile)
 
 router.get('/job',authMiddleware.authenticateToken,corporateController.getJobs)
-router.get('/job/saved',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('veteran'),veteranController.getSavedJobs)
-router.put('/job/save',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('veteran'),veteranController.saveOrRemoveJob)
+router.get('/job/saved',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.getSavedJobs)
+router.put('/job/save',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.saveOrRemoveJob)
 router.put('/job/match',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.matchCorporateJob) 
 
 router.get('/resume',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),corporateController.getResume)

@@ -10,7 +10,7 @@ const authMiddleware = require('../middlewares/authMiddleware')
 router.post('/register',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.registerSchemaCorporate),authController.signUp)
 router.post('/login',validationMiddleware.validateBody(validator.loginSchema),authController.logIn)
 router.delete('/account/delete',authMiddleware.authenticateToken,authController.deleteAccount)
-router.get('/profile',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('corporate'),corporateController.getProfile)
+router.get('/profile',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.getProfile)
 router.put('/profile/update',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.profileUpdateCorporateSchema),corporateController.updateProfile)
 
 router.get('/plan',adminController.getPlans)
@@ -24,6 +24,6 @@ router.get('/job',authMiddleware.authenticateToken,corporateController.getJobs)
 router.get('/resume',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("resume"),corporateController.getResume) 
 router.put('/match',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.matchUserProfile) 
 router.get('/application',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.getApplications) 
-router.put('/request/video',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.requestProfileVideo) 
+router.put('/request/video',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("profileVideo"),corporateController.requestProfileVideo) 
 
 module.exports = router

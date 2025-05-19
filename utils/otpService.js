@@ -78,13 +78,13 @@ const sendOtpToEmail = async (recipientEmail,otp) => {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-          user: 'rithu107009@gmail.com',
+          user: process.env.GMAIL,
           pass: process.env.PASSWORD,
         },
       });
   
       const mailOptions = {
-        from: 'rithu107009@gmail.com',
+        from: process.env.GMAIL,
         to: recipientEmail,
         subject: subject,
         html: htmlContent,

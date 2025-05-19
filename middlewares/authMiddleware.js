@@ -34,9 +34,7 @@ function authorizeRoles(...allowedRoles) {
                 return next()
             } 
 
-
             if (req.user.role === 'corporate') {
-
                 const user = req.user
                 const usersCollection = await getUsersCollection()
                 const exisitingUser = await usersCollection.findOne({ userId: user.userId })
@@ -70,19 +68,15 @@ function authorizeRoles(...allowedRoles) {
                     },
                 }
 
-                
-
                 const hasPermission = allowedRoles.every(key => {
-                    console.log(key + "idhu")
                     const planEnabled = planAccess[key] === true
                     const withinLimit = usageLimits[key]
                         ? usageLimits[key].used < usageLimits[key].allowed
                         : true
                     return planEnabled && withinLimit
                 });
-                console.log(hasPermission)
+                
                 if (!hasPermission) {
-                    console.log(usageLimits)
                     return res.status(403).json({ message: "Access Denied: Plan limit reached or permission missing" })
                 }
 

@@ -599,7 +599,7 @@ async function requestProfileVideo(req,res) {
         const applicationsCollection = await dbModel.getApplicationsCollection()
         const usersCollection = await dbModel.getUsersCollection()
 
-        const existingApplication = await usersCollection.findOne({ applicationId })
+        const existingApplication = await applicationsCollection.findOne({ applicationId })
         
         if (!existingApplication) {
             return res.status(404).json({ message: "Application not Found!" })

@@ -184,7 +184,7 @@ async function logIn(req,res) {
                     managePlans: existingUser.access.managePlans
                 },"1d")
             }
-            return res.status(200).json({ message: "Login successful", userId: existingUser.userId, token})
+            return res.status(200).json({ message: "Login successful", userId: existingUser.userId, token , userName:existingUser.userName , email:existingUser.email})
         }
     } catch (error) {
         console.error("Error Login : ", error)

@@ -374,7 +374,7 @@ async function getResume(req, res) {
             });
         }
 
-        const totalResume = await resumesCollection.countDocuments(query)
+        const totalResume = await resumesCollection.countDocuments()
         const resumes = await resumesCollection
             .find({}, { projection })
             .skip(skip)

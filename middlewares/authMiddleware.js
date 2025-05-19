@@ -19,8 +19,8 @@ function authenticateToken(req, res, next) {
 
 function authorizeRoles(...allowedRoles) {
     return async (req, res, next) => {
+        
         try {
-
             if (allowedRoles.includes(req.user.role)) {
                 return next()
             }
@@ -33,6 +33,7 @@ function authorizeRoles(...allowedRoles) {
                 }
                 return next()
             } 
+
 
             if (req.user.role === 'corporate') {
 
@@ -56,28 +57,32 @@ function authorizeRoles(...allowedRoles) {
 
                 const usageLimits = {
                     resume: {
-                        used: exisitingUser?.planDate?.resumeViewCount || 0,
+                        used: exisitingUser?.planData?.resumeViewCount || 0,
                         allowed: planAccess.resumeCountLimit,
                     },
                     profileVideo: {
-                        used: exisitingUser?.planDate?.profileVideoViewCount || 0,
+                        used: exisitingUser?.planData?.profileVideoViewCount || 0,
                         allowed: planAccess.profileVideoCountLimit,
                     },
                     jobPost: {
-                        used: exisitingUser?.planDate?.jobPostedCount || 0,
+                        used: exisitingUser?.planData?.jobPostedCount || 0,
                         allowed: planAccess.jobPostCountLimit,
                     },
                 }
 
+                
+
                 const hasPermission = allowedRoles.every(key => {
+                    console.log(key + "idhu")
                     const planEnabled = planAccess[key] === true
                     const withinLimit = usageLimits[key]
                         ? usageLimits[key].used < usageLimits[key].allowed
                         : true
                     return planEnabled && withinLimit
                 });
-
+                console.log(hasPermission)
                 if (!hasPermission) {
+                    console.log(usageLimits)
                     return res.status(403).json({ message: "Access Denied: Plan limit reached or permission missing" })
                 }
 

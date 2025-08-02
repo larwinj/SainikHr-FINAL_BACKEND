@@ -21,8 +21,6 @@ router.get('/job/saved',authMiddleware.authenticateToken,authMiddleware.authoriz
 router.put('/job/save',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.saveOrRemoveJob)
 router.put('/job/match',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.matchCorporateJob) 
 
-router.put('/job/inc_view',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.incrementJobView) 
-
 router.get('/resume',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),corporateController.getResume)
 router.post('/resume/create',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.resumeSchema),veteranController.createOrUpdateResume)
 router.put('/resume/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.resumeSchema),veteranController.createOrUpdateResume)

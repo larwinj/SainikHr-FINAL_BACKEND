@@ -26,6 +26,7 @@ const {
   SubscribedPlan,
   sequelize,
   Access,
+  CurrentSubscribedPlan,
 } = require("../models");
 const { sendMutualMatchEmail } = require("../utils/otpService");
 const RestrictedDomain = require("../models/RestrictedDomain");
@@ -50,14 +51,16 @@ async function subscription(req, res) {
         .json({ message: "Plan or Corporate User doesn't exist" });
     }
 
-    // Enforce one-free-trial-per-domain for Free Trial plan
-    // if (plan.planName === 'free_trial') {
-    //   const domain = existingUser.email.split('@')[1];
-    //   const existingDomain = await RestrictedDomain.findOne({ where: { domain } });
-    //   if (existingDomain) {
-    //     return res.status(403).json({ message: 'Free trial already used for this domain' });
-    //   }
-    // }
+    // Enforce one-free-trial-per-domain for Free Trial plan (uncomment if needed)
+    /*
+    if (plan.planName === 'free_trial') {
+      const domain = existingUser.email.split('@')[1];
+      const existingDomain = await RestrictedDomain.findOne({ where: { domain } });
+      if (existingDomain) {
+        return res.status(403).json({ message: 'Free trial already used for this domain' });
+      }
+    }
+    */
 
     // Calculate subscription dates
     const subscribedAt = new Date();
@@ -70,16 +73,16 @@ async function subscription(req, res) {
       expireAt = new Date(subscribedAt);
 
       switch (durationUnit) {
-        case "days":
+        case "day":
           expireAt.setDate(expireAt.getDate() + durationValue);
           break;
-        case "weeks":
+        case "week":
           expireAt.setDate(expireAt.getDate() + durationValue * 7);
           break;
-        case "months":
+        case "month":
           expireAt.setMonth(expireAt.getMonth() + durationValue);
           break;
-        case "years":
+        case "year":
           expireAt.setFullYear(expireAt.getFullYear() + durationValue);
           break;
         default:
@@ -97,32 +100,59 @@ async function subscription(req, res) {
       );
     }
 
-    // Create or update subscription in SubscribedPlan
-    const subscriptionData = {
-      userId,
-      planId,
-      planName,
-      resumeViewCount: 0,
-      profileVideoCount: 0,
-      jobPostedCount: 0,
-      profileVideoRequestExpiry,
-      subscribedAt,
-      expireAt,
-      resetAt: new Date(new Date().setDate(1)), // First of current month
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    // Start a transaction to ensure atomicity
+    const transaction = await SubscribedPlan.sequelize.transaction();
+    try {
+      // Create a new subscription record in SubscribedPlan
+      const newSubscription = await SubscribedPlan.create(
+        {
+          id: uuidv4(),
+          userId,
+          planId,
+          planName,
+          resumeViewCount: 0,
+          profileVideoCount: 0,
+          jobPostedCount: 0,
+          profileVideoRequestExpiry,
+          subscribedAt,
+          expireAt,
+          resetAt: new Date(new Date().setDate(1)), // First of current month
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        { transaction }
+      );
 
-    await SubscribedPlan.upsert(subscriptionData);
+      // Update or create the current subscription in CurrentSubscribedPlan
+      await CurrentSubscribedPlan.upsert(
+        {
+          userId,
+          subscriptionId: newSubscription.id,
+        },
+        { transaction }
+      );
 
-    // Add domain to RestrictedDomain for Free Trial
-    // if (plan.planName === 'free_trial') {
-    //   await RestrictedDomain.create({
-    //     domain: existingUser.email.split('@')[1],
-    //     createdAt: new Date(),
-    //     updatedAt: new Date(),
-    //   });
-    // }
+      // Add domain to RestrictedDomain for Free Trial (uncomment if needed)
+      /*
+      if (plan.planName === 'free_trial') {
+        await RestrictedDomain.create(
+          {
+            domain: existingUser.email.split('@')[1],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          { transaction }
+        );
+      }
+      */
+
+      // Commit the transaction
+      await transaction.commit();
+    } catch (error) {
+      // Rollback the transaction on error
+      await transaction.rollback();
+      throw new Error(`Failed to create subscription: ${error.message}`);
+    }
 
     // Get plan access from cache
     const planAccess = getPlanAccess(planId) || {
@@ -477,13 +507,11 @@ async function getJobs(req, res) {
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
-
 async function getProfile(req, res) {
   try {
     const user = req.user;
-    console.log(
-      "TESTINGGGGGGG!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    );
+    console.log("TESTINGGGGGGG!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+
     // Fetch user data, excluding sensitive fields
     const existingUser = await User.findOne({
       where: { userId: user.userId },
@@ -501,19 +529,32 @@ async function getProfile(req, res) {
       where: { userId: user.userId },
     });
 
-    // Fetch access details for the user
-    const access = await Access.findOne({
-      where: { accessId: user.userId },
+    // Fetch current subscription details
+    const currentSubscription = await CurrentSubscribedPlan.findOne({
+      where: { userId: user.userId },
       include: [
         {
-          model: CorporatePlan,
-          attributes: [
-            "planId",
-            "planName",
-            "durationValue",
-            "durationUnit",
-            "rate",
-            "currency",
+          model: SubscribedPlan,
+          include: [
+            {
+              model: CorporatePlan,
+              attributes: [
+                "planId",
+                "planName",
+                "durationValue",
+                "durationUnit",
+                "rate",
+                "currency",
+                "profileVideo",
+                "resume",
+                "jobPost",
+                "resumeCountLimit",
+                "profileVideoCountLimit",
+                "jobPostCountLimit",
+                "skillLocationFilters",
+                "matchCandidatesEmailing",
+              ],
+            },
           ],
         },
       ],
@@ -571,18 +612,40 @@ async function getProfile(req, res) {
       return acc;
     }, {});
 
-    // Calculate plan expiration date
-    let expireAt = "";
-    if (access && access.CorporatePlan) {
-      const subscribedAt = new Date();
-      const durationMs =
-        access.CorporatePlan.durationUnit === "days"
-          ? access.CorporatePlan.durationValue * 24 * 60 * 60 * 1000
-          : access.CorporatePlan.durationUnit === "months"
-          ? access.CorporatePlan.durationValue * 30 * 24 * 60 * 60 * 1000
-          : 0;
-      expireAt = new Date(subscribedAt.getTime() + durationMs).toISOString();
-    }
+    // Prepare plan data
+    const planData = currentSubscription?.SubscribedPlan
+      ? {
+          planId: currentSubscription.SubscribedPlan.CorporatePlan?.planId || "",
+          planName: currentSubscription.SubscribedPlan.CorporatePlan?.planName || "Basic",
+          resumeViewCount: currentSubscription.SubscribedPlan.resumeViewCount || 0,
+          profileVideoViewCount: currentSubscription.SubscribedPlan.profileVideoCount || 0,
+          jobPostedCount: currentSubscription.SubscribedPlan.jobPostedCount || 0,
+          subscribedAt: currentSubscription.SubscribedPlan.subscribedAt
+            ? currentSubscription.SubscribedPlan.subscribedAt.toISOString()
+            : "",
+          expireAt: currentSubscription.SubscribedPlan.expireAt
+            ? currentSubscription.SubscribedPlan.expireAt.toISOString()
+            : "",
+          rate: currentSubscription.SubscribedPlan.CorporatePlan?.rate || 0,
+          currency: currentSubscription.SubscribedPlan.CorporatePlan?.currency || "USD",
+          profileVideoAccess: currentSubscription.SubscribedPlan.CorporatePlan?.profileVideo || false,
+          resumeAccess: currentSubscription.SubscribedPlan.CorporatePlan?.resume || false,
+          jobPostAccess: currentSubscription.SubscribedPlan.CorporatePlan?.jobPost || false,
+        }
+      : {
+          planId: "",
+          planName: "Basic",
+          resumeViewCount: 0,
+          profileVideoViewCount: 0,
+          jobPostedCount: 0,
+          subscribedAt: "",
+          expireAt: "",
+          rate: 0,
+          currency: "USD",
+          profileVideoAccess: false,
+          resumeAccess: false,
+          jobPostAccess: false,
+        };
 
     // Merge user, corporate details, and plan data into the profile
     const userProfile = {
@@ -599,7 +662,7 @@ async function getProfile(req, res) {
       companyName: corporateDetails?.companyName || "",
       website: corporateDetails?.website || "",
       gstNumber: corporateDetails?.gstNumber || "",
-      cinNumber: corporateDetails?.gstNumber || "",
+      cinNumber: corporateDetails?.cinNumber || "", // Fixed typo (was gstNumber)
       panNumber: corporateDetails?.panNumber || "",
       incorporationDate: corporateDetails?.incorporationDate
         ? corporateDetails.incorporationDate.toISOString()
@@ -627,20 +690,7 @@ async function getProfile(req, res) {
         views: viewCountMap[job.jobId] || 0,
         appliedVeterans: applicationCountMap[job.jobId] || 0,
       })),
-      planData: {
-        planId: access?.CorporatePlan?.planId || "",
-        planName: access?.CorporatePlan?.planName || "Basic",
-        resumeViewCount: access?.resumeCountLimit || 0,
-        profileVideoViewCount: access?.profileVideoCountLimit || 0,
-        jobPostedCount: access?.jobPostCountLimit || 0,
-        subscribedAt: access ? new Date().toISOString() : "",
-        expireAt: expireAt || "",
-        rate: access?.CorporatePlan?.rate || 0,
-        currency: access?.CorporatePlan?.currency || "USD",
-        profileVideoAccess: access?.profileVideo || false,
-        resumeAccess: access?.resume || false,
-        jobPostAccess: access?.jobPost || false,
-      },
+      planData,
     };
 
     return res.status(200).json({
@@ -649,7 +699,7 @@ async function getProfile(req, res) {
     });
   } catch (error) {
     console.error("Error fetching profile:", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 }
 

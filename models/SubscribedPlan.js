@@ -4,7 +4,12 @@ const User = require('./User');
 const CorporatePlan = require('./CorporatePlan');
 
 const SubscribedPlan = sequelize.define('SubscribedPlan', {
-  userId: { type: DataTypes.UUID, primaryKey: true },
+  id: { 
+    type: DataTypes.UUID, 
+    defaultValue: DataTypes.UUIDV4, 
+    primaryKey: true 
+  },
+  userId: { type: DataTypes.UUID },
   planId: { type: DataTypes.UUID },
   subscribedAt: DataTypes.DATE,
   expiredAt: DataTypes.DATE,
@@ -12,7 +17,7 @@ const SubscribedPlan = sequelize.define('SubscribedPlan', {
   profileVideoCount: { type: DataTypes.INTEGER, defaultValue: 0 },
   jobPostedCount: { type: DataTypes.INTEGER, defaultValue: 0 },
   resetAt: { type: DataTypes.DATE },
-  profileVideoValidUntil: { type: DataTypes.DATE, allowNull: true }, // New field
+  profileVideoValidUntil: { type: DataTypes.DATE, allowNull: true },
 }, {
   underscored: true,
   timestamps: false,

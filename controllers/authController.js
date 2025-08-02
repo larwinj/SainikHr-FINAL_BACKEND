@@ -405,6 +405,7 @@ async function resetPassword(req, res) {
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
+
 async function sendOTP(req, res) {
   try {
     const email = req.query?.email;
@@ -432,7 +433,6 @@ async function sendOTP(req, res) {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 }
-
 
 async function googleRedirect(req, res) {
   try {

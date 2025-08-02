@@ -19,4 +19,3 @@ const AdminAccess = sequelize.define('AdminAccess', {
 // User.hasOne(AdminAccess, { foreignKey: 'userId' });
 
 module.exports = AdminAccess;
- 

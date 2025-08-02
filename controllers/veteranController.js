@@ -187,7 +187,7 @@ async function deleteResume(req, res) {
     if (!resumeId) {
       return res.status(400).json({ message: "Resume ID is required" });
     }
-
+    
     const resume = await Resume.findOne({ where: { resumeId, userId } });
 
     if (!resume) {
@@ -279,7 +279,6 @@ async function matchCorporateJob(req, res) {
       if (!existingApplication.userMatched) {
         const now = new Date(existingApplication.createdAt);
         const expiredAt = new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000);
-
         await existingApplication.update({
           userMatched: true,
           updatedAt: new Date(),
@@ -439,31 +438,6 @@ async function rejectRequest(req, res) {
   } catch (error) {
     console.error("Request reject error:", error);
     return res.status(500).json({ message: "Internal Server Error" });
-  }
-}
-
-async function incrementJobView(req, res) {
-  try {
-    const { jobId } = req.query;
-
-    if (!jobId) {
-      return res.status(400).json({ message: "Job ID is required!" });
-    }
-
-    // Fetch the job
-    const existingJob = await Job.findByPk(jobId);
-
-    if (!existingJob) {
-      return res.status(404).json({ message: "Job not found!" });
-    }
-
-    // Increment the data_view count
-    await existingJob.increment('data_view');
-
-    return res.status(200).json({ message: "Job view count incremented successfully!" });
-  } catch (error) {
-    console.error("Error incrementing job view: ", error);
-    return res.status(500).json({ message: "Internal server error" });
   }
 }
 

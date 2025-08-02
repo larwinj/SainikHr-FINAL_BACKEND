@@ -94,8 +94,7 @@ function authorizeRoles(...allowedRoles) {
             console.error("Authorization Error:", error)
             res.status(500).json({ message: "Internal Server Error" })
         }
-    };
-}
+
 
 module.exports = {
   authenticateToken,

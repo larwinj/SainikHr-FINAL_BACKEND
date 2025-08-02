@@ -1303,9 +1303,6 @@ async function recordJobView(req, res) {
 }
 
 async function recordJobApplication(req, res) {
-  console.log(
-    "======================recordJobView called***+*********************=================================="
-  );
   try {
     const { jobId } = req.params;
     const user = req.user;

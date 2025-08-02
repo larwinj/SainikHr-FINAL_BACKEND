@@ -26,6 +26,6 @@ const sequelize = new Sequelize('sainikhr', 'root', 'Rooban@6362', {
   dialect: 'mysql',
   // logging: false,
 });
-
 require('../models'); 
 module.exports = { sequelize };
+

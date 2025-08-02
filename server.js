@@ -48,6 +48,7 @@ const PORT = process.env.PORT || 3060;
 (async () => {
   try {
     await sequelize.sync({ alter: true });
+
     console.log('✅ All models synced successfully.');
 
     await planAccessCache.loadCorporatePlans();

@@ -9,12 +9,12 @@ const {
     CorporateDetails,
     Access
  } = require("../models");
+
 async function createOrUpdatePlan(req, res) {
   try {
     const data = req.body;
     const planId = req.query?.planId;
 
-    // Validate input
     if (!data.planName || !data.duration?.value || !data.duration?.unit || !data.cost?.rate || !data.cost?.currency) {
       return res.status(400).json({ message: 'Missing required fields: planName, duration, or cost' });
     }
@@ -29,12 +29,14 @@ async function createOrUpdatePlan(req, res) {
       return res.status(400).json({ message: 'Limits cannot be negative' });
     }
 
+
     let message;
 
     if (planId) {
       const existingPlan = await CorporatePlan.findOne({ where: { planId } });
+
       if (!existingPlan) {
-        return res.status(404).json({ message: "Plan not found" });
+        return res.status(404).json({ message: "The Plan doesn't exist" });
       }
 
       await existingPlan.update({
@@ -219,7 +221,6 @@ async function verifyCorporate(req, res) {
     if (!existingUser) {
       return res.status(404).json({ message: "The User doesn't exist" });
     }
-
     const newStatus = !existingUser.verified;
 
     console.log(existingUser)

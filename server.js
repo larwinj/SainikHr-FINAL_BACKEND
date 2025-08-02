@@ -1,38 +1,61 @@
-require('dotenv').config()
-require("./utils/passport")
-const express = require('express')
-const cors = require('cors')
+require('dotenv').config();
+require('./utils/passport');
 
-const bodyParser = require('body-parser')
-const veteranRoutes = require('./routes/veteranRoutes')
-const adminRoutes = require('./routes/adminRoutes')
-const authRoutes = require('./routes/authRoutes')
-const corporateRoutes = require('./routes/corporateRoutes')
-const planAccessCache = require('./utils/planAccessCache')
-const passport = require("passport")
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const passport = require('passport');
+const path = require('path'); // ✅ Needed for resolving dist folder
+
+const veteranRoutes = require('./routes/veteranRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const authRoutes = require('./routes/authRoutes');
+const corporateRoutes = require('./routes/corporateRoutes');
+const planAccessCache = require('./utils/planAccessCache');
+const { sequelize } = require('./utils/db');
+
+require('./models');
 
 const corsOptions = {
-    // origin: 'http://192.168.243.154:5173',
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT' ,'DELETE' ],
-}
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+};
 
-const app = express()
+const app = express();
 
-app.use(cors(corsOptions))
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
-app.use(bodyParser.json())
-app.use(passport.initialize())
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.use(passport.initialize());
 
-app.use("/veteran", veteranRoutes)
-app.use("/corporate", corporateRoutes)
-app.use("/admin", adminRoutes)
-app.use("/auth", authRoutes)
+// ✅ Serve Vite's build folder
+app.use(express.static(path.join(__dirname, 'dist')));
 
-const PORT = process.env.PORT || 3060
+// ✅ API routes
+app.use('/backend/veteran', veteranRoutes);
+app.use('/backend/corporate', corporateRoutes);
+app.use('/backend/admin', adminRoutes);
+app.use('/backend/auth', authRoutes);
 
-app.listen(PORT, () => {
-    planAccessCache.loadCorporatePlans()
-    console.log(`Listening to the port ${PORT}...`)
+// ✅ Catch-all for client-side routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
+
+const PORT = process.env.PORT || 3060;
+
+(async () => {
+  try {
+    await sequelize.sync({ alter: true });
+    console.log('✅ All models synced successfully.');
+
+    await planAccessCache.loadCorporatePlans();
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Listening on http://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error('❌ Startup error:', err);
+  }
+})();

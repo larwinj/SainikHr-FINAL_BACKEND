@@ -1,32 +1,59 @@
-const dbModel = require('../models/dbModels')
+const dbModel = require('../models/index.js');
 
-const planAccessCache = new Map()
-let lastLoaded = null
+const planAccessCache = new Map();
+let lastLoaded = null;
 
 async function loadCorporatePlans() {
-    const collection = await dbModel.getCorporatePlansCollection()
-    const plans = await collection.find({}).toArray()
+  const { CorporatePlan } = dbModel;
 
-    planAccessCache.clear()
-    plans.forEach(plan => {
-        if (plan.planId && plan.access) {
-            planAccessCache.set(plan.planId, plan.access)
-        }
-    });
+  const plans = await CorporatePlan.findAll({
+    attributes: [
+      'planId',
+      'profileVideo',
+      'resume',
+      'jobPost',
+      'profileVideoCountLimit',
+      'resumeCountLimit',
+      'jobPostCountLimit',
+      'skillLocationFilters',
+      'matchCandidatesEmailing',
+    ],
+  });
 
-    lastLoaded = new Date()
+  planAccessCache.clear();
+  plans.forEach((plan) => {
+    if (plan.planId) {
+      planAccessCache.set(plan.planId, {
+        profileVideo: plan.profileVideo,
+        resume: plan.resume,
+        jobPost: plan.jobPost,
+        profileVideoCountLimit: plan.profileVideoCountLimit,
+        resumeCountLimit: plan.resumeCountLimit,
+        jobPostCountLimit: plan.jobPostCountLimit,
+        skillLocationFilters: plan.skillLocationFilters,
+        matchCandidatesEmailing: plan.matchCandidatesEmailing,
+      });
+    }
+  });
+
+  lastLoaded = new Date();
 }
 
 function getPlanAccess(planId) {
-    return planAccessCache.get(planId)
+  return planAccessCache.get(planId);
+}
+
+function setPlanAccess(planId, access) {
+  planAccessCache.set(planId, access);
 }
 
 function getLastLoadedTime() {
-    return lastLoaded
+  return lastLoaded;
 }
 
 module.exports = {
-    loadCorporatePlans,
-    getPlanAccess,
-    getLastLoadedTime,
-}
+  loadCorporatePlans,
+  getPlanAccess,
+  setPlanAccess,
+  getLastLoadedTime,
+};

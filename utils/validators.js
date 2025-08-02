@@ -128,7 +128,11 @@ const loginSchema = Joi.object({
         "string.empty": "Password cannot be empty",
         "string.min": "Password must be at least 6 characters",
         "any.required": "Password is required",
-    }) 
+    }),
+    role: Joi.string().required().messages({
+        "string.empty": "Role cannot be empty",
+        "any.required": "Role is required",
+    })
 })
 
 const resetPasswordSchema = Joi.object({
@@ -147,79 +151,77 @@ const resetPasswordSchema = Joi.object({
         "any.required": "Password is required",
     }) 
 })
-
 const corporatePlanSchema = Joi.object({
-    planName: Joi.string().required().messages({
-        "string.base": "Plan name must be a string",
-        "string.empty": "Plan name cannot be empty",
-        "any.required": "Plan name is required"
+  planName: Joi.string().required().messages({
+    'string.base': 'Plan name must be a string',
+    'string.empty': 'Plan name cannot be empty',
+    'any.required': 'Plan name is required',
+  }),
+  access: Joi.object({
+    profileVideo: Joi.boolean().default(false).messages({
+      'boolean.base': 'Profile video must be a boolean',
     }),
-    access: Joi.object({
-        profileVideo: Joi.boolean().required().messages({
-            "boolean.base": "Profile video must be a boolean",
-            "any.required": "Profile video access is required"
-        }),
-        profileVideoCountLimit: Joi.number().integer().min(0).required().messages({
-            "number.base": "Profile video count limit must be a number",
-            "number.integer": "Profile video count limit must be an integer",
-            "number.min": "Profile video count limit cannot be negative",
-            "any.required": "Profile video count limit is required"
-        }),
-        resume: Joi.boolean().required().messages({
-            "boolean.base": "Resume access must be a boolean",
-            "any.required": "Resume access is required"
-        }),
-        resumeCountLimit: Joi.number().integer().min(0).required().messages({
-            "number.base": "Resume count limit must be a number",
-            "number.integer": "Resume count limit must be an integer",
-            "number.min": "Resume count limit cannot be negative",
-            "any.required": "Resume count limit is required"
-        }),
-        jobPost: Joi.boolean().required().messages({
-            "boolean.base": "Job post access must be a boolean",
-            "any.required": "Job post access is required"
-        }),
-        jobPostCountLimit: Joi.number().integer().min(0).required().messages({
-            "number.base": "Job post count limit must be a number",
-            "number.integer": "Job post count limit must be an integer",
-            "number.min": "Job post count limit cannot be negative",
-            "any.required": "Job post count limit is required"
-        }),
-    }).required().messages({
-        "object.base": "Access must be an object",
-        "any.required": "Access section is required"
+    profileVideoCountLimit: Joi.number().integer().min(0).allow(null).default(null).messages({
+      'number.base': 'Profile video count limit must be a number',
+      'number.integer': 'Profile video count limit must be an integer',
+      'number.min': 'Profile video count limit cannot be negative',
     }),
-    duration: Joi.object({
-        value: Joi.number().positive().required().messages({
-            "number.base": "Duration value must be a number",
-            "number.positive": "Duration value must be greater than 0",
-            "any.required": "Duration value is required"
-        }),
-        unit: Joi.string().valid("days", "weeks", "months", "years").required().messages({
-            "any.only": "Duration unit must be one of 'days', 'weeks', 'months', or 'years'",
-            "any.required": "Duration unit is required"
-        }),
-    }).required().messages({
-        "object.base": "Duration must be an object",
-        "any.required": "Duration section is required"
+    resume: Joi.boolean().default(false).messages({
+      'boolean.base': 'Resume access must be a boolean',
     }),
-    cost: Joi.object({
-        rate: Joi.number().positive().required().messages({
-            "number.base": "Cost rate must be a number",
-            "number.positive": "Cost rate must be greater than 0",
-            "any.required": "Cost rate is required"
-        }),
-        currency: Joi.string().length(3).uppercase().required().messages({
-            "string.base": "Currency must be a string",
-            "string.length": "Currency must be exactly 3 uppercase letters (ISO code)",
-            "string.uppercase": "Currency must be in uppercase",
-            "any.required": "Currency is required"
-        }),
-    }).required().messages({
-        "object.base": "Cost must be an object",
-        "any.required": "Cost section is required"
-    })
-})
+    resumeCountLimit: Joi.number().integer().min(0).allow(null).default(null).messages({
+      'number.base': 'Resume count limit must be a number',
+      'number.integer': 'Resume count limit must be an integer',
+      'number.min': 'Resume count limit cannot be negative',
+    }),
+    jobPost: Joi.boolean().default(false).messages({
+      'boolean.base': 'Job post access must be a boolean',
+    }),
+    jobPostCountLimit: Joi.number().integer().min(0).allow(null).default(null).messages({
+      'number.base': 'Job post count limit must be a number',
+      'number.integer': 'Job post count limit must be an integer',
+      'number.min': 'Job post count limit cannot be negative',
+    }),
+    skillLocationFilters: Joi.boolean().default(false).messages({
+      'boolean.base': 'Skill and location filters must be a boolean',
+    }),
+    matchCandidatesEmailing: Joi.boolean().default(false).messages({
+      'boolean.base': 'Match candidates emailing must be a boolean',
+    }),
+  }).default({}).messages({
+    'object.base': 'Access must be an object',
+  }),
+  duration: Joi.object({
+    value: Joi.number().positive().required().messages({
+      'number.base': 'Duration value must be a number',
+      'number.positive': 'Duration value must be greater than 0',
+      'any.required': 'Duration value is required',
+    }),
+    unit: Joi.string().valid('days', 'weeks', 'months', 'years').required().messages({
+      'any.only': "Duration unit must be one of 'days', 'weeks', 'months', or 'years'",
+      'any.required': 'Duration unit is required',
+    }),
+  }).required().messages({
+    'object.base': 'Duration must be an object',
+    'any.required': 'Duration section is required',
+  }),
+  cost: Joi.object({
+    rate: Joi.number().min(0).required().messages({
+      'number.base': 'Cost rate must be a number',
+      'number.min': 'Cost rate cannot be negative',
+      'any.required': 'Cost rate is required',
+    }),
+    currency: Joi.string().length(3).uppercase().required().messages({
+      'string.base': 'Currency must be a string',
+      'string.length': 'Currency must be exactly 3 uppercase letters (ISO code)',
+      'string.uppercase': 'Currency must be in uppercase',
+      'any.required': 'Currency is required',
+    }),
+  }).required().messages({
+    'object.base': 'Cost must be an object',
+    'any.required': 'Cost section is required',
+  }),
+});
 
 const jobSchema = Joi.object({
 
@@ -393,6 +395,72 @@ const profileUpdateSchema = Joi.object({
     })
 })
 
+const adminProfileUpdateSchema = Joi.object({
+  userId: Joi.string().required().messages({
+    'string.base': 'User ID must be a string.',
+    'string.empty': 'User ID is required.',
+    'any.required': 'User ID is required.'
+  }),
+  userName: Joi.string().min(3).max(30).required().messages({
+    'string.base': 'Username must be a string.',
+    'string.empty': 'Username is required.',
+    'string.min': 'Username must be at least 3 characters long.',
+    'string.max': 'Username cannot exceed 30 characters.',
+    'any.required': 'Username is required.'
+  }),
+  email: Joi.string().email().required().messages({
+    'string.base': 'Email must be a string.',
+    'string.email': 'Email must be a valid email address.',
+    'string.empty': 'Email is required.',
+    'any.required': 'Email is required.'
+  }),
+  role: Joi.string().valid('admin').required().messages({
+    'string.base': 'Role must be a string.',
+    'any.only': 'Role must be "admin".',
+    'string.empty': 'Role is required.',
+    'any.required': 'Role is required.'
+  }),
+  roleName: Joi.string().required().messages({
+    'string.base': 'Role name must be a string.',
+    'string.empty': 'Role name is required.',
+    'any.required': 'Role name is required.'
+  }),
+  password: Joi.string().min(6).optional().allow('').messages({
+    'string.base': 'Password must be a string.',
+    'string.min': 'Password must be at least 6 characters long.'
+  }),
+  manageAdmins: Joi.boolean().required().messages({
+    'boolean.base': 'Manage admins permission must be a boolean.',
+    'any.required': 'Manage admins permission is required.'
+  }),
+  manageUsers: Joi.boolean().required().messages({
+    'boolean.base': 'Manage users permission must be a boolean.',
+    'any.required': 'Manage users permission is required.'
+  }),
+  verifyCorporates: Joi.boolean().required().messages({
+    'boolean.base': 'Verify corporates permission must be a boolean.',
+    'any.required': 'Verify corporates permission is required.'
+  }),
+  manageJobs: Joi.boolean().required().messages({
+    'boolean.base': 'Manage jobs permission must be a boolean.',
+    'any.required': 'Manage jobs permission is required.'
+  }),
+  financialManagement: Joi.boolean().required().messages({
+    'boolean.base': 'Financial management permission must be a boolean.',
+    'any.required': 'Financial management permission is required.'
+  }),
+  managePlans: Joi.boolean().required().messages({
+    'boolean.base': 'Manage plans permission must be a boolean.',
+    'any.required': 'Manage plans permission is required.'
+  }),
+  viewReports: Joi.boolean().required().messages({
+    'boolean.base': 'View reports permission must be a boolean.',
+    'any.required': 'View reports permission is required.'
+  })
+}).unknown(false).messages({
+  'object.unknown': 'Invalid field provided: {#key} is not allowed.'
+});
+
 const profileUpdateCorporateSchema = Joi.object({
     userName: Joi.string().min(3).max(30).required().messages({
         'string.base': 'Username must be a string.',
@@ -406,7 +474,6 @@ const profileUpdateCorporateSchema = Joi.object({
         'string.empty': 'CompanyName is required.',
         'any.required': 'CompanyName is required.'
     }),
-    name: Joi.object({
         firstName: Joi.string().min(1).max(50).required().messages({
             'string.base': 'First name must be a string.',
             'string.empty': 'First name is required.',
@@ -425,73 +492,117 @@ const profileUpdateCorporateSchema = Joi.object({
             'string.max': 'Last name cannot exceed 50 characters.',
             'any.required': 'Last name is required.'
         }),
-    }).required().messages({
-        'object.base': 'Name must be an object.',
-        'any.required': 'Name is required.'
-    })
-})
-
-const resumeSchema = Joi.object({
-    title: Joi.string().min(2).max(100).required(),
     
+    industry: Joi.string().required().messages({
+        'string.base': 'Industry must be a string.',
+        'string.empty': 'Industry is required.',
+        'any.required': 'Industry is required.'
+    }),
     contact: Joi.object({
-        phone: Joi.string()
-        .pattern(/^\+?\d{10,15}$/)
-        .required()
-        .messages({
-            'string.pattern.base': 'Phone must be a valid number with 10 to 15 digits.',
-        }),
-        email: Joi.string().email({ tlds: { allow: false } }).required(),
-        location: Joi.string().min(2).max(100).required(),
-        pincode: Joi.string()
-        .pattern(/^\d{4,10}$/)
-        .required()
-        .messages({
-            'string.pattern.base': 'Pincode must be between 4 and 10 digits.',
-        }),
-        linkedin: Joi.string().uri().required(),
-        github: Joi.string().uri().required()
-    }).required(),
-    
-    profile: Joi.string().min(10).max(1000).required(),
-    
-    education: Joi.array().items(
-        Joi.object({
-            years: Joi.string().required(),
-            institution: Joi.string().min(2).max(100).required(),
-            degree: Joi.string().min(2).max(100).required(),
-            percentage: Joi.string().pattern(/^\d{1,3}(\.\d{1,2})?%?$/).required()
+        phone: Joi.string().required().messages({
+            'string.base': 'Phone must be a string.',
+            'string.empty': 'Phone is required.',
+            'any.required': 'Phone is required.'
         })
-    ).min(1).required(),
+    }).required().messages({
+        'object.base': 'Contact must be an object.',
+        'any.required': 'Contact is required.'
+    }),
+    website: Joi.string().uri({ scheme: ['http', 'https'] }).required().messages({
+        'string.base': 'Website must be a string.',
+        'string.empty': 'Website is required.',
+        'string.uri': 'Website must be a valid URL.',
+        'any.required': 'Website is required.'
+    }),
     
-    skills: Joi.array().items(
-        Joi.string().min(1).max(50)
-    ).min(1).required(),
-    
-    languages: Joi.array().items(
-        Joi.string().min(1).max(50)
-    ).min(1).required(),
-    
-    workExperience: Joi.array().items(
-        Joi.object({
-            company: Joi.string().min(2).max(100).required(),
-            role: Joi.string().min(2).max(100).required(),
-            duration: Joi.string().min(2).max(100).required(),
-            responsibilities: Joi.array().items(
-                Joi.string().min(5).max(300)
-            ).min(1).required()
-        })
-    ).min(0).required(),
-    
-    projects: Joi.array().items(
-        Joi.object({
-            title: Joi.string().min(2).max(100).required(),
-            role: Joi.string().min(2).max(100).required(),
-            year: Joi.string().pattern(/^\d{4}$/).required(),
-            description: Joi.string().min(10).max(1000).required()
-        })
-    ).min(0).required()
-})
+    companySize: Joi.string().valid('1-10 employees', '11-50 employees', '51-200 employees', '201-500 employees', '501+ employees').required().messages({
+        'string.base': 'Company size must be a string.',
+        'string.empty': 'Company size is required.',
+        'any.only': 'Invalid company size.',
+        'any.required': 'Company size is required.'
+    }),
+    gstNumber: Joi.string().optional().allow('').messages({
+        'string.base': 'GST Number must be a string.'
+    }),
+    cinNumber: Joi.string().optional().allow('').messages({
+        'string.base': 'CIN Number must be a string.'
+    }),
+    panNumber: Joi.string().optional().allow('').messages({
+        'string.base': 'PAN Number must be a string.'
+    }),
+    incorporationDate: Joi.date().optional().allow('').messages({
+        'date.base': 'Incorporation Date must be a valid date.'
+    }),
+    businessType: Joi.string().optional().allow('').messages({
+        'string.base': 'Business Type must be a string.'
+    }),
+    registeredAddress: Joi.string().required().messages({
+        'string.base': 'Registered Address must be a string.',
+        'string.empty': 'Registered Address is required.',
+        'any.required': 'Registered Address is required.'
+    }),
+    businessEmail: Joi.string().email().required().messages({
+        'string.base': 'Business Email must be a string.',
+        'string.empty': 'Business Email is required.',
+        'string.email': 'Invalid business email format.',
+        'any.required': 'Business Email is required.'
+    }),
+    businessPhone: Joi.string().required().messages({
+        'string.base': 'Business Phone must be a string.',
+        'string.empty': 'Business Phone is required.',
+        'any.required': 'Business Phone is required.'
+    }),
+    email: Joi.string().email({ tlds: { allow: false } }),
+
+});
+const resumeSchema = Joi.object({
+  title: Joi.string().min(2).max(100).required(),
+  contact: Joi.object({
+    phone: Joi.string().pattern(/^\+?\d{10,15}$/).required(),
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    location: Joi.string().min(2).max(100).required(),
+    pincode: Joi.string().pattern(/^\d{4,10}$/).required(),
+    linkedin: Joi.string().uri().required(),
+    github: Joi.string().uri().required(),
+  }).required(),
+  profile: Joi.string().min(10).max(1000).required(),
+  skills: Joi.array().items(Joi.string().min(1).max(50)).min(1).required(),
+  languages: Joi.array().items(Joi.string().min(1).max(50)).min(1).required(),
+  education: Joi.array()
+    .items(
+      Joi.object({
+        years: Joi.string().required(),
+        institution: Joi.string().min(2).max(100).required(),
+        degree: Joi.string().min(2).max(100).required(),
+        percentage: Joi.string().pattern(/^\d{1,3}(\.\d{1,2})?%?$/).required(),
+      })
+    )
+    .min(1)
+    .required(),
+  workExperience: Joi.array()
+    .items(
+      Joi.object({
+        company: Joi.string().min(2).max(100).required(),
+        role: Joi.string().min(2).max(100).required(),
+        duration: Joi.string().min(2).max(100).required(),
+        responsibilities: Joi.array().items(Joi.string().min(5).max(300)).min(1).required(),
+      })
+    )
+    .min(0)
+    .required(),
+  projects: Joi.array()
+    .items(
+      Joi.object({
+        title: Joi.string().min(2).max(100).required(),
+        role: Joi.string().min(2).max(100).required(),
+        year: Joi.string().pattern(/^\d{4}$/).required(),
+        description: Joi.string().min(10).max(1000).required(),
+      })
+    )
+    .min(0)
+    .required(),
+});
+
 
 const roleAccessSchema = Joi.object({
   roleName: Joi.string()
@@ -550,4 +661,5 @@ module.exports = {
     profileUpdateCorporateSchema,
     resumeSchema,
     roleAccessSchema,
+    adminProfileUpdateSchema
 };

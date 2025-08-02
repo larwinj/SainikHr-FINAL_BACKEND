@@ -151,79 +151,77 @@ const resetPasswordSchema = Joi.object({
         "any.required": "Password is required",
     }) 
 })
-
 const corporatePlanSchema = Joi.object({
-    planName: Joi.string().required().messages({
-        "string.base": "Plan name must be a string",
-        "string.empty": "Plan name cannot be empty",
-        "any.required": "Plan name is required"
+  planName: Joi.string().required().messages({
+    'string.base': 'Plan name must be a string',
+    'string.empty': 'Plan name cannot be empty',
+    'any.required': 'Plan name is required',
+  }),
+  access: Joi.object({
+    profileVideo: Joi.boolean().default(false).messages({
+      'boolean.base': 'Profile video must be a boolean',
     }),
-    access: Joi.object({
-        profileVideo: Joi.boolean().required().messages({
-            "boolean.base": "Profile video must be a boolean",
-            "any.required": "Profile video access is required"
-        }),
-        profileVideoCountLimit: Joi.number().integer().min(0).required().messages({
-            "number.base": "Profile video count limit must be a number",
-            "number.integer": "Profile video count limit must be an integer",
-            "number.min": "Profile video count limit cannot be negative",
-            "any.required": "Profile video count limit is required"
-        }),
-        resume: Joi.boolean().required().messages({
-            "boolean.base": "Resume access must be a boolean",
-            "any.required": "Resume access is required"
-        }),
-        resumeCountLimit: Joi.number().integer().min(0).required().messages({
-            "number.base": "Resume count limit must be a number",
-            "number.integer": "Resume count limit must be an integer",
-            "number.min": "Resume count limit cannot be negative",
-            "any.required": "Resume count limit is required"
-        }),
-        jobPost: Joi.boolean().required().messages({
-            "boolean.base": "Job post access must be a boolean",
-            "any.required": "Job post access is required"
-        }),
-        jobPostCountLimit: Joi.number().integer().min(0).required().messages({
-            "number.base": "Job post count limit must be a number",
-            "number.integer": "Job post count limit must be an integer",
-            "number.min": "Job post count limit cannot be negative",
-            "any.required": "Job post count limit is required"
-        }),
-    }).required().messages({
-        "object.base": "Access must be an object",
-        "any.required": "Access section is required"
+    profileVideoCountLimit: Joi.number().integer().min(0).allow(null).default(null).messages({
+      'number.base': 'Profile video count limit must be a number',
+      'number.integer': 'Profile video count limit must be an integer',
+      'number.min': 'Profile video count limit cannot be negative',
     }),
-    duration: Joi.object({
-        value: Joi.number().positive().required().messages({
-            "number.base": "Duration value must be a number",
-            "number.positive": "Duration value must be greater than 0",
-            "any.required": "Duration value is required"
-        }),
-        unit: Joi.string().valid("days", "weeks", "months", "years").required().messages({
-            "any.only": "Duration unit must be one of 'days', 'weeks', 'months', or 'years'",
-            "any.required": "Duration unit is required"
-        }),
-    }).required().messages({
-        "object.base": "Duration must be an object",
-        "any.required": "Duration section is required"
+    resume: Joi.boolean().default(false).messages({
+      'boolean.base': 'Resume access must be a boolean',
     }),
-    cost: Joi.object({
-        rate: Joi.number().positive().required().messages({
-            "number.base": "Cost rate must be a number",
-            "number.positive": "Cost rate must be greater than 0",
-            "any.required": "Cost rate is required"
-        }),
-        currency: Joi.string().length(3).uppercase().required().messages({
-            "string.base": "Currency must be a string",
-            "string.length": "Currency must be exactly 3 uppercase letters (ISO code)",
-            "string.uppercase": "Currency must be in uppercase",
-            "any.required": "Currency is required"
-        }),
-    }).required().messages({
-        "object.base": "Cost must be an object",
-        "any.required": "Cost section is required"
-    })
-})
+    resumeCountLimit: Joi.number().integer().min(0).allow(null).default(null).messages({
+      'number.base': 'Resume count limit must be a number',
+      'number.integer': 'Resume count limit must be an integer',
+      'number.min': 'Resume count limit cannot be negative',
+    }),
+    jobPost: Joi.boolean().default(false).messages({
+      'boolean.base': 'Job post access must be a boolean',
+    }),
+    jobPostCountLimit: Joi.number().integer().min(0).allow(null).default(null).messages({
+      'number.base': 'Job post count limit must be a number',
+      'number.integer': 'Job post count limit must be an integer',
+      'number.min': 'Job post count limit cannot be negative',
+    }),
+    skillLocationFilters: Joi.boolean().default(false).messages({
+      'boolean.base': 'Skill and location filters must be a boolean',
+    }),
+    matchCandidatesEmailing: Joi.boolean().default(false).messages({
+      'boolean.base': 'Match candidates emailing must be a boolean',
+    }),
+  }).default({}).messages({
+    'object.base': 'Access must be an object',
+  }),
+  duration: Joi.object({
+    value: Joi.number().positive().required().messages({
+      'number.base': 'Duration value must be a number',
+      'number.positive': 'Duration value must be greater than 0',
+      'any.required': 'Duration value is required',
+    }),
+    unit: Joi.string().valid('days', 'weeks', 'months', 'years').required().messages({
+      'any.only': "Duration unit must be one of 'days', 'weeks', 'months', or 'years'",
+      'any.required': 'Duration unit is required',
+    }),
+  }).required().messages({
+    'object.base': 'Duration must be an object',
+    'any.required': 'Duration section is required',
+  }),
+  cost: Joi.object({
+    rate: Joi.number().min(0).required().messages({
+      'number.base': 'Cost rate must be a number',
+      'number.min': 'Cost rate cannot be negative',
+      'any.required': 'Cost rate is required',
+    }),
+    currency: Joi.string().length(3).uppercase().required().messages({
+      'string.base': 'Currency must be a string',
+      'string.length': 'Currency must be exactly 3 uppercase letters (ISO code)',
+      'string.uppercase': 'Currency must be in uppercase',
+      'any.required': 'Currency is required',
+    }),
+  }).required().messages({
+    'object.base': 'Cost must be an object',
+    'any.required': 'Cost section is required',
+  }),
+});
 
 const jobSchema = Joi.object({
 

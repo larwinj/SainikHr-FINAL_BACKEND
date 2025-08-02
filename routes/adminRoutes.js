@@ -12,10 +12,31 @@ router.post('/login',validationMiddleware.validateBody(validator.loginSchema),au
 router.delete('/account/delete',authMiddleware.authenticateToken,authController.deleteAccount)
 router.put('/profile/update',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.adminProfileUpdateSchema),corporateController.updateProfile)
 
-router.post('/plan/create',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("managePlans"),validationMiddleware.validateBody(validator.corporatePlanSchema),adminController.createOrUpdatePlan)
-router.put('/plan/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("managePlans"),validationMiddleware.validateBody(validator.corporatePlanSchema),adminController.createOrUpdatePlan)
-router.delete('/plan/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("managePlans"),adminController.deletePlan)
-router.get('/plan',authMiddleware.authenticateToken,adminController.getPlans)
+router.post(
+  '/plan/create',
+  authMiddleware.authenticateToken,
+  authMiddleware.authorizeRoles('managePlans'),
+  validationMiddleware.validateBody(validator.corporatePlanSchema),
+  adminController.createOrUpdatePlan
+);
+router.put( 
+  '/plan/update',
+  authMiddleware.authenticateToken,
+  authMiddleware.authorizeRoles('managePlans'),
+  validationMiddleware.validateBody(validator.corporatePlanSchema),
+  adminController.createOrUpdatePlan
+);
+router.delete(
+  '/plan/delete',
+  authMiddleware.authenticateToken,
+  authMiddleware.authorizeRoles('managePlans'),
+  adminController.deletePlan
+);
+router.get(
+  '/plan',
+  authMiddleware.authenticateToken,
+  adminController.getPlans
+);
 
 router.post('/job/post',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("manageJobs"),validationMiddleware.validateBody(validator.jobSchema),corporateController.postOrUpdateJob)
 router.put('/job/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("manageJobs"),validationMiddleware.validateBody(validator.jobSchema),corporateController.postOrUpdateJob)

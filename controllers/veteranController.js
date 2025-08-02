@@ -187,7 +187,7 @@ async function deleteResume(req, res) {
     if (!resumeId) {
       return res.status(400).json({ message: "Resume ID is required" });
     }
-
+    
     const resume = await Resume.findOne({ where: { resumeId, userId } });
 
     if (!resume) {
@@ -279,7 +279,6 @@ async function matchCorporateJob(req, res) {
       if (!existingApplication.userMatched) {
         const now = new Date(existingApplication.createdAt);
         const expiredAt = new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000);
-
         await existingApplication.update({
           userMatched: true,
           updatedAt: new Date(),
@@ -289,7 +288,7 @@ async function matchCorporateJob(req, res) {
       }
       
       if (!existingApplication.userMatched && existingApplication.corporateMatched) {
-        await sendMutualMatchEmail(existingApplication,existingJob,existingUser)
+        await sendMutualMatchEmail(existingApplication, existingJob, existingUser);
         return res.status(200).json({
           message: `You are now matched with ${existingCorporate.userName} for the job ${existingJob.title}!`,
         });
@@ -313,6 +312,8 @@ async function matchCorporateJob(req, res) {
         expiredAt: fiveDaysLater,
       });
 
+      // Increment the data_applied count for the job
+      await existingJob.increment('data_applied');
     }
 
     return res.status(200).json({ message: "You've successfully matched yourself to the job!" });
@@ -448,5 +449,6 @@ module.exports = {
     getSavedJobs,
     matchCorporateJob,
     acceptRequestAndUploadVideo,
-    rejectRequest
+    rejectRequest,
+    incrementJobView
 }

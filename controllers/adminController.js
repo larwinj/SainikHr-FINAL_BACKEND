@@ -15,6 +15,21 @@ async function createOrUpdatePlan(req, res) {
     const data = req.body;
     const planId = req.query?.planId;
 
+    if (!data.planName || !data.duration?.value || !data.duration?.unit || !data.cost?.rate || !data.cost?.currency) {
+      return res.status(400).json({ message: 'Missing required fields: planName, duration, or cost' });
+    }
+
+    // Validate limits
+    const access = data.access || {};
+    if (
+      (access.resumeCountLimit !== null && access.resumeCountLimit < 0) ||
+      (access.profileVideoCountLimit !== null && access.profileVideoCountLimit < 0) ||
+      (access.jobPostCountLimit !== null && access.jobPostCountLimit < 0)
+    ) {
+      return res.status(400).json({ message: 'Limits cannot be negative' });
+    }
+
+
     let message;
 
     if (planId) {
@@ -26,73 +41,75 @@ async function createOrUpdatePlan(req, res) {
 
       await existingPlan.update({
         planName: data.planName,
-        profileVideo: data.access?.profileVideo,
-        profileVideoCountLimit: data.access?.profileVideoCountLimit,
-        resume: data.access?.resume,
-        resumeCountLimit: data.access?.resumeCountLimit,
-        jobPost: data.access?.jobPost,
-        jobPostCountLimit: data.access?.jobPostCountLimit,
-        durationValue: data.duration?.value,
-        durationUnit: data.duration?.unit,
-        rate: data.cost?.rate,
-        currency: data.cost?.currency
+        profileVideo: access.profileVideo ?? false,
+        profileVideoCountLimit: access.profileVideoCountLimit ?? null,
+        resume: access.resume ?? false,
+        resumeCountLimit: access.resumeCountLimit ?? null,
+        jobPost: access.jobPost ?? false,
+        jobPostCountLimit: access.jobPostCountLimit ?? null,
+        skillLocationFilters: access.skillLocationFilters ?? false,
+        matchCandidatesEmailing: access.matchCandidatesEmailing ?? false,
+        durationValue: data.duration.value,
+        durationUnit: data.duration.unit,
+        rate: data.cost.rate,
+        currency: data.cost.currency,
       });
 
-      message = "Corporate plan updated successfully";
+      message = `Plan ${data.planName} updated successfully`;
     } else {
       await CorporatePlan.create({
         planId: uuidv4(),
         planName: data.planName,
-        profileVideo: data.access?.profileVideo,
-        profileVideoCountLimit: data.access?.profileVideoCountLimit,
-        resume: data.access?.resume,
-        resumeCountLimit: data.access?.resumeCountLimit,
-        jobPost: data.access?.jobPost,
-        jobPostCountLimit: data.access?.jobPostCountLimit,
-        durationValue: data.duration?.value,
-        durationUnit: data.duration?.unit,
-        rate: data.cost?.rate,
-        currency: data.cost?.currency
+        profileVideo: access.profileVideo ?? false,
+        profileVideoCountLimit: access.profileVideoCountLimit ?? null,
+        resume: access.resume ?? false,
+        resumeCountLimit: access.resumeCountLimit ?? null,
+        jobPost: access.jobPost ?? false,
+        jobPostCountLimit: access.jobPostCountLimit ?? null,
+        skillLocationFilters: access.skillLocationFilters ?? false,
+        matchCandidatesEmailing: access.matchCandidatesEmailing ?? false,
+        durationValue: data.duration.value,
+        durationUnit: data.duration.unit,
+        rate: data.cost.rate,
+        currency: data.cost.currency,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
-      message = "Corporate plan inserted successfully";
+      message = `Plan ${data.planName} created successfully`;
     }
 
-    // Refresh in-memory cache
-    planAccessCache.loadCorporatePlans();
+    // Refresh cache
+    await planAccessCache.loadCorporatePlans();
 
     return res.status(200).json({ message });
-
   } catch (error) {
-    console.error("Error inserting or updating corporate plan: ", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error('Error creating or updating plan:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
   }
 }
 
 async function deletePlan(req, res) {
   try {
     const planId = req.query?.planId;
-
     if (!planId) {
-      return res.status(400).json({ message: "Plan ID is required" });
+      return res.status(400).json({ message: 'Plan ID is required' });
     }
 
     const existingPlan = await CorporatePlan.findOne({ where: { planId } });
-
     if (!existingPlan) {
-      return res.status(404).json({ message: "The Plan doesn't exist" });
+      return res.status(404).json({ message: 'Plan not found' });
     }
 
     await CorporatePlan.destroy({ where: { planId } });
 
-    // Refresh cached plans
-    planAccessCache.loadCorporatePlans();
+    // Refresh cache
+    await planAccessCache.loadCorporatePlans();
 
-    return res.status(200).json({ message: `The Plan ${existingPlan.planName} is deleted` });
-
+    return res.status(200).json({ message: `Plan ${existingPlan.planName} deleted successfully` });
   } catch (error) {
-    console.error("Error deleting corporate plan: ", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error('Error deleting plan:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
   }
 }
 
@@ -102,10 +119,9 @@ async function getPlans(req, res) {
     const user = req.user;
 
     // Build query attributes based on user role
-    const attributes =
-      !user || user.role !== "admin" || user?.managePlans !== true
-        ? { exclude: ["createdAt", "updatedAt"] }
-        : { exclude: [] };
+    const attributes = user?.role === 'admin' && user?.managePlans
+      ? { exclude: [] }
+      : { exclude: ['createdAt', 'updatedAt'] };
 
     if (planId) {
       const plan = await CorporatePlan.findOne({
@@ -114,12 +130,35 @@ async function getPlans(req, res) {
       });
 
       if (!plan) {
-        return res.status(404).json({ message: "Plan not found" });
+        return res.status(404).json({ message: 'Plan not found' });
       }
 
       return res.status(200).json({
-        message: "Corporate Plan Retrieved Successfully",
-        plan,
+        message: 'Plan retrieved successfully',
+        plan: {
+          planId: plan.planId,
+          planName: plan.planName,
+          access: {
+            profileVideo: plan.profileVideo,
+            profileVideoCountLimit: plan.profileVideoCountLimit,
+            resume: plan.resume,
+            resumeCountLimit: plan.resumeCountLimit,
+            jobPost: plan.jobPost,
+            jobPostCountLimit: plan.jobPostCountLimit,
+            skillLocationFilters: plan.skillLocationFilters,
+            matchCandidatesEmailing: plan.matchCandidatesEmailing,
+          },
+          duration: {
+            value: plan.durationValue,
+            unit: plan.durationUnit,
+          },
+          cost: {
+            rate: plan.rate,
+            currency: plan.currency,
+          },
+          createdAt: plan.createdAt,
+          updatedAt: plan.updatedAt,
+        },
       });
     }
 
@@ -128,19 +167,44 @@ async function getPlans(req, res) {
       attributes,
       offset,
       limit: parseInt(limit),
-      order: [["createdAt", "DESC"]],
+      order: [['createdAt', 'DESC']],
     });
 
+    const formattedPlans = plans.map(plan => ({
+      planId: plan.planId,
+      planName: plan.planName,
+      access: {
+        profileVideo: plan.profileVideo,
+        profileVideoCountLimit: plan.profileVideoCountLimit,
+        resume: plan.resume,
+        resumeCountLimit: plan.resumeCountLimit,
+        jobPost: plan.jobPost,
+        jobPostCountLimit: plan.jobPostCountLimit,
+        skillLocationFilters: plan.skillLocationFilters,
+        matchCandidatesEmailing: plan.matchCandidatesEmailing,
+      },
+      duration: {
+        value: plan.durationValue,
+        unit: plan.durationUnit,
+      },
+      cost: {
+        rate: plan.rate,
+        currency: plan.currency,
+      },
+      createdAt: plan.createdAt,
+      updatedAt: plan.updatedAt,
+    }));
+
     return res.status(200).json({
-      message: "Corporate Plans Retrieved Successfully",
-      plans,
+      message: 'Plans retrieved successfully',
+      plans: formattedPlans,
       totalPlans,
       currentPage: parseInt(page),
       totalPages: Math.ceil(totalPlans / parseInt(limit)),
     });
   } catch (error) {
-    console.error("Error fetching corporate plans: ", error);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error('Error fetching plans:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
   }
 }
 
@@ -157,7 +221,6 @@ async function verifyCorporate(req, res) {
     if (!existingUser) {
       return res.status(404).json({ message: "The User doesn't exist" });
     }
-
     const newStatus = !existingUser.verified;
 
     console.log(existingUser)

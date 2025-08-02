@@ -21,11 +21,11 @@
 // ------------------------------------------------------------------------------------
 const { Sequelize } = require('sequelize');
 
-const sequelize = new Sequelize('sainikhr', 'root', 'LN24', {
+const sequelize = new Sequelize('sainikhr', 'root', 'Rooban@6362', {
   host: 'localhost',
   dialect: 'mysql',
   // logging: false,
 });
-
-require('../models');
+require('../models'); 
 module.exports = { sequelize };
+

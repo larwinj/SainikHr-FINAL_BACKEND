@@ -6,10 +6,13 @@ const authController = require("../controllers/authController")
 const validationMiddleware = require('../middlewares/validationMiddleware')
 const validators = require('../utils/validators')
 
+
 router.get('/jwt',authMiddleware.authenticateToken,(req,res) => res.json({data : req.user})) //testin purpose
 router.get('/sendotp',authController.sendOTP)
 router.put('/resetpassword',authMiddleware.authenticateToken,validationMiddleware.validateBody(validators.resetPasswordSchema),authController.resetPassword)
 router.get("/google",passport.authenticate("google", { scope: ["profile", "email"] })) //call this endpoint for google login
 router.get("/google/callback",passport.authenticate("google", { session: false }),authController.googleRedirect)
+
+router.get('/getRole', authMiddleware.authenticateToken, authController.getUserRoleFromToken);
 
 module.exports = router

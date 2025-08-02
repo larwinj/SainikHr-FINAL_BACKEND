@@ -6,11 +6,11 @@ const corporateController = require('../controllers/corporateController')
 const adminController = require('../controllers/adminController')
 const validationMiddleware = require('../middlewares/validationMiddleware')
 const validator = require('../utils/validators')
-
-router.post('/createadmin',validationMiddleware.validateBody(validator.registerSchemaAdmin),authController.signUp)
+ 
+router.post('/createadmin',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('manageUsers'),authController.signUp)
 router.post('/login',validationMiddleware.validateBody(validator.loginSchema),authController.logIn)
 router.delete('/account/delete',authMiddleware.authenticateToken,authController.deleteAccount)
-router.put('/profile/update',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.profileUpdateSchema),corporateController.updateProfile)
+router.put('/profile/update',authMiddleware.authenticateToken,validationMiddleware.validateBody(validator.adminProfileUpdateSchema),corporateController.updateProfile)
 
 router.post('/plan/create',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("managePlans"),validationMiddleware.validateBody(validator.corporatePlanSchema),adminController.createOrUpdatePlan)
 router.put('/plan/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("managePlans"),validationMiddleware.validateBody(validator.corporatePlanSchema),adminController.createOrUpdatePlan)
@@ -24,7 +24,7 @@ router.get('/job',authMiddleware.authenticateToken,corporateController.getJobs)
 
 router.delete('/profile/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("manageUsers"),authController.deleteAccount)
 router.delete('/resume',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("manageUsers"),corporateController.getResume)
-router.get('/profile',authMiddleware.authenticateToken,adminController.fetchUserProfiles)
+router.get('/profile',authMiddleware.authenticateToken,adminController.fetchAdmins)
 
 router.put('/profile/verify',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("verifyCorporates"),adminController.verifyCorporate)
 

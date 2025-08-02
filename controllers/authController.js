@@ -2,292 +2,358 @@ const { generateOTP, sendOtpToEmail, generateOtpToken } = require("../utils/otpS
 const { verifyOtp } = require("../utils/otpService")
 const JWTToken = require("../utils/jwtToken")
 const passwordHasher = require("../utils/passwordHasher")
-const dbModel = require("../models/dbModels")
+// const dbModel = require("../models/dbModels")
 const { v4: uuidv4 } = require("uuid")
 
-async function signUp(req,res) {
-    try {
-        const user = req.body
-        const data = req.user
-        const planId = req.query?.planId
-        const usersCollection = await dbModel.getUsersCollection()
-        const corporatePlansCollection = await dbModel.getCorporatePlansCollection()
-        const existingUser = await usersCollection.findOne({ email: user.email })
-        let token
-        let plan
-
-        if(user.role !== "admin" && !verifyOtp(user.email,user.otp,data)) {
-            return res.status(401).json({ message: "Invalid OTP" })
-        }
-
-        if (existingUser) {
-            return res.status(403).json({ message: "User with this email already exists" })
-        }
-
-        if(planId) {
-            plan = await corporatePlansCollection.findOne({ planId })
-            if(!plan) {
-                return res.status(403).json({ message: "Plan doesn't exists"})
-            }
-        }
-
-        let userFormat = {
-            userId: uuidv4(),
-            name: {
-                firstName: user.userName,
-                middleName: null,
-                lastName: null
-            },
-            email: user.email,
-            password: await passwordHasher.hashPassword(user.password),
-            role: user.role
-        }
-
-        if(user.role === "veteran") {
-            userFormat = { 
-                ...userFormat,
-                userName: user.userName,
-                jobsApplied: [],
-                resumes: [],
-                savedJobs: [],
-            }
-        } else if(user.role === "admin") {
-            userFormat = { 
-                ...userFormat,
-                userName: user.userName,
-                roleName: user.roleName,
-                access:{
-                    manageAdmins: user.manageAdmins,
-                    manageUsers: user.manageUsers,
-                    verifyCorporates: user.verifyCorporates,
-                    manageJobs: user.manageJobs,
-                    financialManagement: user.financialManagement,
-                    managePlans: user.managePlans
-                }
-            }
-        } else {
-            const subscribedAt = new Date()
-            let expireAt = null
-            let planName = null
-
-            if (plan?.duration?.value && plan?.duration?.unit) {
-                planName = plan.planName
-                const durationValue = Number(plan.duration.value)
-                const durationUnit = plan.duration.unit
-                expireAt = new Date(subscribedAt)
-                switch (durationUnit.toLowerCase()) {
-                    case "days":
-                        expireAt.setDate(expireAt.getDate() + durationValue);
-                        break;
-                    case "weeks":
-                        expireAt.setDate(expireAt.getDate() + durationValue * 7);
-                        break;
-                    case "months":
-                        expireAt.setMonth(expireAt.getMonth() + durationValue);
-                        break;
-                    case "years":
-                        expireAt.setFullYear(expireAt.getFullYear() + durationValue);
-                        break;
-                    default:
-                        console.warn("Unsupported duration unit");
-                        expireAt = null;
-                }
-            }
-            userFormat = { 
-                ...userFormat,
-                companyName: user?.companyName,
-                postedJobs: [],
-                verified: false,
-                planData: {
-                    planId,
-                    planName,
-                    resumeViewCount: 0,
-                    profileVideoViewCount: 0,
-                    jobPostedCount: 0,
-                    subscribedAt,
-                    expireAt,
-                }
-            }
-        }
-        userFormat.createdAt = new Date()
-        userFormat.updatedAt = new Date()
-
-        await usersCollection.insertOne(userFormat)
-
-        if(userFormat.role === "veteran") {
-            token = JWTToken({ 
-                userId: userFormat.userId, 
-                role: userFormat.role, 
-            },"1d")
-        } else if(userFormat.role === "corporate") {
-            token = JWTToken({
-                userId: userFormat.userId,
-                role: userFormat.role,
-                planId: userFormat.planData.planId,
-                expireAt: userFormat.planData.expireAt
-            },"1d")
-        } else {
-            token = JWTToken({ 
-                userId: userFormat.userId, 
-                role: userFormat.role, 
-                manageAdmins: userFormat.access.manageAdmins,
-                manageUsers: userFormat.access.manageUsers,
-                verifyCorporates: userFormat.access.verifyCorporates,
-                manageJobs: userFormat.access.manageJobs,
-                financialManagement: userFormat.access.financialManagement,
-                managePlans: userFormat.access.managePlans
-            },"1d")
-        }
-
-        return res.status(201).json({ message: "User registered successfully", userId: user.userId, token })
-    } catch (error) {
-        console.error("Error Signup : ", error)
-        res.status(500).json({ message: "Internal Server Error" })
+const {
+  User,
+  VeteranDetails,
+  CorporateDetails,
+  SubscribedPlan,
+  AdminAccess,
+  CorporatePlan,
+} = require("../models");
+const { json } = require("sequelize")
+async function signUp(req, res) {
+  try {
+    const { userName, email, password, otp, role, ...other } = req.body;
+    const data = req.user; 
+    const planId = req.query?.planId;
+    // console.log("SignUp Data:", req.body, data);
+    // Validate input
+    if (!userName || !email || !password  || !role || (role !== 'admin' && !otp) ) {
+      return res.status(400).json({ message: "Missing required fields" });
     }
-}
 
-async function logIn(req,res) {
-    try {
-        const user = req.body
-        const usersCollection = await dbModel.getUsersCollection()
-        const existingUser = await usersCollection.findOne({ email: user.email })
-        let token
-
-        if (!existingUser){
-            return res.status(404).json({ message: "User does not exists!" })
-        } else if (existingUser?.message) {
-            return res.status(403).json({ message: existingUser?.message })
-        } else if (!await passwordHasher.verifyPassword(user.password,existingUser.password)) {
-            return res.status(401).json({ message: "Invalid Email or Password" })
-        } else {
-            if(existingUser.role === "veteran") {
-                token = JWTToken({ 
-                    userId: existingUser.userId, 
-                    role: existingUser.role, 
-                },"1d")
-            } else if(existingUser.role === "corporate") {
-                token = JWTToken({
-                    userId: existingUser.userId,
-                    role: existingUser.role,
-                    planId: existingUser.planData.planId,
-                    expireAt: existingUser.planData.expireAt
-                },"1d")
-            } else {
-                token = JWTToken({ 
-                    userId: existingUser.userId, 
-                    role: existingUser.role, 
-                    manageAdmins: existingUser.access.manageAdmins,
-                    manageUsers: existingUser.access.manageUsers,
-                    verifyCorporates: existingUser.access.verifyCorporates,
-                    manageJobs: existingUser.access.manageJobs,
-                    financialManagement: existingUser.access.financialManagement,
-                    managePlans: existingUser.access.managePlans
-                },"1d")
-            }
-            return res.status(200).json({ message: "Login successful", userId: existingUser.userId, token , userName:existingUser.userName , email:existingUser.email})
-        }
-    } catch (error) {
-        console.error("Error Login : ", error)
-        res.status(500).json({ message: "Internal Server Error" })
+    if (!['veteran', 'admin', 'corporate'].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
     }
-}
 
-async function deleteAccount(req,res) {
-    try {
-        const user = req.user
-        const userId = req.query?.userId
-        const password = req.query?.password
-
-        const usersCollection = await dbModel.getUsersCollection()
-        
-        if (password) {
-            const admin = await usersCollection.findOne({ userId: user.userId })
-            const existingUser =  await usersCollection.findOne({ userId })
-            if (!admin || admin.role !== "admin" || !admin.access.manageUsers || !existingUser) {
-                return res.status(403).json({ message: "Unauthorized admin credentials" })
-            }
-            const isAdminPasswordValid = await passwordHasher.verifyPassword(password, admin.password)
-            if (!isAdminPasswordValid) {
-                return res.status(401).json({ message: "Invalid admin password" })
-            }
-            await usersCollection.deleteOne({ userId })
-            await usersCollection.insertOne({ userId, email: existingUser.email, message: "Account deleted by admin" })
-            return res.status(200).json({ message: "Account deleted by admin" })
-        }
-
-        const existingUser = await usersCollection.findOne({ userId: user.userId })
-
-        if (!existingUser) {
-            return res.status(404).json({ message: "User does not exist!" })
-        }
-        await usersCollection.deleteOne({ userId: user.userId })
-        return res.status(200).json({ message: "Account deleted successfully" })
-    } catch (error) {
-        console.error("Error Deleting Account : ", error)
-        res.status(500).json({ message: "Internal Server Error" })
+    if (role === 'corporate' && !planId) {
+      return res.status(400).json({ message: "planId is required for corporate users" });
     }
-}
 
-async function resetPassword(req,res) {
+    // OTP verification for non-admin users
+    if (role !== "admin"  && !verifyOtp(email, otp, data)) {
+      return res.status(401).json({ message: "Invalid OTP" });
+    }
+
+    // Check for existing user
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(403).json({ message: "User with this email already exists" });
+    }
+
+    const hashedPassword = await passwordHasher.hashPassword(password);
+
+    // Start database transaction
+    const transaction = await User.sequelize.transaction();
     try {
-        const user = req.body;
-        const data = req.user;
-        const usersCollection = await dbModel.getUsersCollection();
-    
-        const existingUser = await usersCollection.findOne({ email: user.email });
-        if (!existingUser) {
-          return res.status(404).json({ message: "User not found" });
+      const newUser = await User.create({
+        userId: uuidv4(),
+        username: userName,
+        email,
+        passwordHash: hashedPassword,
+        role
+      }, { transaction });
+
+      let token;
+
+      if (role === "veteran") {
+        await VeteranDetails.create({ userId: newUser.userId }, { transaction });
+        token = JWTToken({ userId: newUser.userId, role }, "1d");
+
+      // === Admin User ===
+      } else if (role === "admin") {
+        const adminAccess = {
+          userId: newUser.userId,
+          roleName: other.roleName || "admin",
+          manageAdmins: other.manageAdmins || false, //what is this?
+          manageUsers: other.manageUsers || false,
+          verifyCorporates: other.verifyCorporates || false,
+          manageJobs: other.manageJobs || false,
+          financialManagement: other.financialManagement || false,
+          managePlans: other.managePlans || false
+        };
+        await AdminAccess.create(adminAccess, { transaction });
+        token = JWTToken({
+          userId: newUser.userId,
+          role,
+          manageAdmins: adminAccess.manageAdmins,
+          manageUsers: adminAccess.manageUsers,
+          verifyCorporates: adminAccess.verifyCorporates,
+          manageJobs: adminAccess.manageJobs,
+          financialManagement: adminAccess.financialManagement,
+          managePlans: adminAccess.managePlans
+        }, "1d");
+
+      // === Corporate User ===
+      } else if (role === "corporate") {
+        const plan = await CorporatePlan.findOne({ where: { planId } });
+        if (!plan) {
+          await transaction.rollback();
+          return res.status(400).json({ message: "Invalid planId" });
         }
-    
-        if (!verifyOtp(user.email, user.otp, data)) {
-          return res.status(401).json({ message: "Invalid OTP" });
-        }
-    
-        const hashedPassword = await passwordHasher.hashPassword(user.password);
-    
-        await usersCollection.updateOne(
-          { email: user.email },
-          {
-            $set: {
-              password: hashedPassword,
-              updatedAt: new Date()
-            }
+
+        let expireAt = null;
+        const subscribedAt = new Date();
+        if (plan.durationValue && plan.durationUnit) {
+          const { durationValue, durationUnit } = plan;
+          expireAt = new Date(subscribedAt);
+          switch (durationUnit.toLowerCase()) {
+            case "days":
+              expireAt.setDate(expireAt.getDate() + durationValue);
+              break;
+            case "weeks":
+              expireAt.setDate(expireAt.getDate() + durationValue * 7);
+              break;
+            case "months":
+              expireAt.setMonth(expireAt.getMonth() + durationValue);
+              break;
+            case "years":
+              expireAt.setFullYear(expireAt.getFullYear() + durationValue);
+              break;
           }
-        );
-    
-        return res.status(200).json({ message: "Password reset successful" });
-    } catch (error) {
-        console.error("Error resetting password:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-}
-
-async function sendOTP(req,res) {
-    try {
-        const data = req.query?.email
-
-        if(!data || data === "") {
-            return res.status(400).json({ message: "Email is required" })
         }
 
-        const otp = generateOTP()
-        await sendOtpToEmail(data,otp)
+        await CorporateDetails.create({
+          userId: newUser.userId,
+          companyName: other.companyName || "",
+          verified: false,
+          website: other.website || "",
+          gstNumber: other.gstNumber || "",
+          cinNumber: other.cinNumber || "",
+          panNumber: other.panNumber || "",
+          incorporationDate: other.incorporationDate || null,
+          businessType: other.businessType || "",
+          registeredAddress: other.registeredAddress || "",
+          businessEmail: other.businessEmail || "",
+          businessPhone: other.businessPhone || ""
+        }, { transaction });
 
-        const token = generateOtpToken(data,otp)
-        return res.status(200).json({ message: "OTP Generated Successfully" , token })
+        await SubscribedPlan.create({
+          userId: newUser.userId,
+          planId,
+          subscribedAt,
+          expiredAt: expireAt,
+          resumeViewCount: 0,
+          profileVideoCount: 0,
+          jobPostedCount: 0
+        }, { transaction });
+
+        token = JWTToken({
+          userId: newUser.userId,
+          role,
+          planId,
+          expireAt
+        }, "1d");
+      }
+
+      await transaction.commit();
+
+      return res.status(201).json({
+        message: "User registered successfully",
+        userId: newUser.userId,
+        username: newUser.username,
+        email: newUser.email,
+        token
+      });
     } catch (error) {
-        console.error("Error OTP generation : ", error)
-        res.status(500).json({ message: "Internal Server Error" })
+      await transaction.rollback();
+      console.error("Error Signup:", error);
+      return res.status(500).json({ message: "Internal Server Error" });
     }
+  } catch (error) {
+    console.error("Error Signup:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
 }
 
-async function googleRedirect(req,res) {
-    try {
-        const token = req.user.token;
-        res.redirect(`/veteran?token=${token}`);
-    } catch (error) {
-        res.status(500).json({ message: "Internal Server Error" })
+async function logIn(req, res) {
+  try {
+    const { email, password, role } = req.body;
+
+    const existingUser = await User.findOne({ where: { email } });
+
+    if (!existingUser) {
+      return res.status(404).json({ message: "User does not exist!" });
     }
+
+    if(existingUser.role !== role) {
+      return res.status(401).json({ message: "Unauthorized login" })
+    }
+
+    const valid = await passwordHasher.verifyPassword(password, existingUser.passwordHash);
+    if (!valid) {
+      return res.status(401).json({ message: "Invalid Email or Password" });
+    }
+
+    let token;
+
+    if (existingUser.role === "veteran") {
+      token = JWTToken({ userId: existingUser.userId, role: existingUser.role }, "1d");
+
+    } else if (existingUser.role === "corporate") {
+      const planData = await SubscribedPlan.findOne({
+        where: { userId: existingUser.userId }
+      });
+
+      token = JWTToken({
+        userId: existingUser.userId,
+        role: existingUser.role,
+        planId: planData?.planId,
+        expireAt: planData?.expiredAt,
+      }, "1d");
+
+    } else if (existingUser.role === "admin") {
+      const access = await AdminAccess.findOne({
+        where: { userId: existingUser.userId }
+      });
+
+      token = JWTToken({
+        userId: existingUser.userId,
+        role: existingUser.role,
+        manageAdmins: access?.manageAdmins,
+        manageUsers: access?.manageUsers,
+        verifyCorporates: access?.verifyCorporates,
+        manageJobs: access?.manageJobs,
+        financialManagement: access?.financialManagement,
+        managePlans: access?.managePlans
+      }, "1d");
+    }
+    console.log(existingUser.username)
+    return res.status(200).json({
+      message: "Login successful",
+      userId: existingUser.userId,
+      username: existingUser.username,
+      email: existingUser.email,
+      role: existingUser.role,
+      token
+    });
+
+  } catch (error) {
+    console.error("Error Login:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+async function deleteAccount(req, res) {   
+  try {
+    const user = req.user; // decoded JWT payload
+    const userIdToDelete = req.query?.userId;
+    const password = req.query?.password;
+
+    // Admin-triggered deletion
+    if (password && userIdToDelete) {
+      const adminUser = await User.findOne({ where: { userId: user.userId } });
+      const access = await AdminAccess.findOne({ where: { userId: user.userId } });
+      const targetUser = await User.findOne({ where: { userId: userIdToDelete } });
+
+      if (
+        !adminUser ||
+        adminUser.role !== "admin" ||
+        !access?.manageUsers ||
+        !targetUser
+      ) {
+        return res.status(403).json({ message: "Unauthorized admin credentials" });
+      }
+
+      const isAdminPasswordValid = await passwordHasher.verifyPassword(password, adminUser.passwordHash);
+      if (!isAdminPasswordValid) {
+        return res.status(401).json({ message: "Invalid admin password" });
+      }
+
+      await User.destroy({ where: { userId: userIdToDelete } });
+      return res.status(200).json({ message: "Account deleted by admin" });
+    }
+
+    // Self-deletion
+    const existingUser = await User.findOne({ where: { userId: user.userId } });
+
+    if (!existingUser) {
+      return res.status(404).json({ message: "User does not exist!" });
+    }
+
+    await User.destroy({ where: { userId: user.userId } });
+    return res.status(200).json({ message: "Account deleted successfully" });
+
+  } catch (error) {
+    console.error("Error Deleting Account:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+async function resetPassword(req, res) {
+  try {
+    const { email, otp, password } = req.body;
+    const tokenPayload = req.user; // Comes from verified OTP token middleware ck
+
+    const existingUser = await User.findOne({ where: { email } });
+    if (!existingUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!verifyOtp(email, otp, tokenPayload)) {
+      return res.status(401).json({ message: "Invalid OTP" });
+    }
+
+    const hashedPassword = await passwordHasher.hashPassword(password);
+
+    await User.update(
+      {
+        passwordHash: hashedPassword,
+        updatedAt: new Date()
+      },
+      { where: { email } }
+    );
+
+    return res.status(200).json({ message: "Password reset successful" });
+  } catch (error) {
+    console.error("Error resetting password:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+async function sendOTP(req, res) {
+  try {
+    const email = req.query?.email;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const otp = generateOTP();
+    await sendOtpToEmail(email, otp);
+    const token = generateOtpToken(email, otp);
+
+    return res.status(200).json({ message: "OTP Generated Successfully", token });
+  } catch (error) {
+    console.error("Error OTP generation:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+async function googleRedirect(req, res) {
+  try {
+    const token = req.user.token;
+    res.redirect(`/veteran?token=${token}`);
+  } catch (error) {
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+async function getUserRoleFromToken (req, res) {
+   try {
+    if (!req.user || !req.user.role) {
+      return res.status(400).json({ message: "Invalid token payload" });
+    }
+
+    return res.status(200).json({
+      role: req.user.role
+    });
+  } catch (error) {
+    console.error("Error getting user role:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
 }
 
 module.exports = {
@@ -296,5 +362,6 @@ module.exports = {
     deleteAccount,
     resetPassword,
     sendOTP,
-    googleRedirect
+    googleRedirect,
+    getUserRoleFromToken
 }

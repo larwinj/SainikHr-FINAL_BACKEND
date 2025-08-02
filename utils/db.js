@@ -1,34 +1,31 @@
-const { MongoClient } = require('mongodb')
+// const { Sequelize } = require('sequelize');
+// require('dotenv').config();
 
-const uri = process.env.DB_URI
-const dbName = process.env.DB_NAME
+// const sequelize = new Sequelize(
+//   process.env.DB_NAME,       // database name
+//   process.env.DB_USER,       // username
+//   process.env.DB_PASSWORD,   // password
+//   {
+//     host: process.env.DB_HOST,
+//     port: process.env.DB_PORT || 3306,
+//     dialect: process.env.DB_DIALECT || 'mysql',
+//     logging: false,          // Set to true if you want to see SQL logs
+//     dialectOptions: {
+//       connectTimeout: 10000  // Optional: increase timeout for remote connection
+//     }
+//   }
+// );
 
-let client
-let db
+// module.exports = { sequelize };
 
-async function connectToDatabase() {
-    try {
-        if (!client) {
-            client = new MongoClient(uri)
-            await client.connect()
-            db = client.db(dbName)
-            console.log("Connected to database...")
-        }
-        return { client, db }
-    } catch (err) {
-        console.error("Database connection error:", err)
-        throw err 
-    }
-}
+// ------------------------------------------------------------------------------------
+const { Sequelize } = require('sequelize');
 
-process.on("SIGINT", async () => {
-    if (client) {
-        await client.close();
-        console.log("MongoDB connection closed.");
-        process.exit(0);
-    }
+const sequelize = new Sequelize('sainikhr', 'root', 'LN24', {
+  host: 'localhost',
+  dialect: 'mysql',
+  // logging: false,
 });
 
-module.exports = {
-    connectToDatabase
-}
+require('../models');
+module.exports = { sequelize };

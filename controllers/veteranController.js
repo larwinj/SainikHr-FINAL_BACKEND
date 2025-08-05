@@ -450,5 +450,4 @@ module.exports = {
     matchCorporateJob,
     acceptRequestAndUploadVideo,
     rejectRequest,
-    incrementJobView
 }

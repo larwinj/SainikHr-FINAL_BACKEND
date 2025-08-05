@@ -239,119 +239,119 @@ const sendJobDeletionEmail = async (job) => {
 
 
 
-const sendJobDeletionEmail = async (job) => {
-  try {
-    // Fetch the corporate user's email from the User model using job.userId
-    const user = await User.findOne({ where: { userId: job.userId } });
-    if (!user) {
-      console.error(`User not found for userId: ${job.userId}`);
-      throw new Error('User not found');
-    }
+// const sendJobDeletionEmail = async (job) => {
+//   try {
+//     // Fetch the corporate user's email from the User model using job.userId
+//     const user = await User.findOne({ where: { userId: job.userId } });
+//     if (!user) {
+//       console.error(`User not found for userId: ${job.userId}`);
+//       throw new Error('User not found');
+//     }
 
-    // Only send email if postedMethod is 'private'
-    if (job.postedMethod !== 'private') {
-      console.log(`Job ${job.jobId} is not private; no email sent.`);
-      return { message: 'Email not sent for public job' };
-    }
+//     // Only send email if postedMethod is 'private'
+//     if (job.postedMethod !== 'private') {
+//       console.log(`Job ${job.jobId} is not private; no email sent.`);
+//       return { message: 'Email not sent for public job' };
+//     }
 
-    const recipientEmail = user.email;
-    const subject = 'SainikHR - Your Job Posting Has Been Deleted by Admin';
-    const htmlContent = `
-    <html>
-        <head>
-        <style>
-            body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: #f4f6f9;
-                margin: 0;
-                padding: 20px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-            .container {
-                background-color: #ffffff;
-                padding: 40px;
-                border-radius: 12px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-                max-width: 500px;
-                width: 100%;
-                text-align: center;
-            }
-            h1 {
-                color: #d32f2f;
-                margin-bottom: 10px;
-            }
-            p {
-                color: #333333;
-                font-size: 16px;
-                line-height: 1.5;
-            }
-            .job-details {
-                display: inline-block;
-                margin: 20px 0;
-                padding: 15px 30px;
-                font-size: 18px;
-                background-color: #ffebee;
-                color: #d32f2f;
-                border-radius: 8px;
-                font-weight: bold;
-            }
-            .footer {
-                margin-top: 20px;
-                font-size: 12px;
-                color: #777777;
-            }
-        </style>
-        </head>
-        <body>
-        <div class="container">
-            <h1>Job Posting Deleted</h1>
-            <p>Dear ${user.firstName || 'User'},</p>
-            <p>We regret to inform you that your job posting on <strong>SainikHR</strong> has been deleted by an administrator.</p>
-            <div class="job-details">
-                <strong>Role:</strong> ${job.role || 'N/A'}<br>
-                <strong>Company:</strong> ${job.companyName || 'N/A'}
-            </div>
-            <p>If you believe this was a mistake or need further clarification, please contact our support team.</p>
-            <p class="footer">Need help? Contact our support team at <a href="mailto:support@sainikhr.com">support@sainikhr.com</a>.</p>
-            <p class="footer">Best regards,<br>The SainikHR Team</p>
-        </div>
-        </body>
-    </html>
-    `;
+//     const recipientEmail = user.email;
+//     const subject = 'SainikHR - Your Job Posting Has Been Deleted by Admin';
+//     const htmlContent = `
+//     <html>
+//         <head>
+//         <style>
+//             body {
+//                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+//                 background-color: #f4f6f9;
+//                 margin: 0;
+//                 padding: 20px;
+//                 display: flex;
+//                 justify-content: center;
+//                 align-items: center;
+//             }
+//             .container {
+//                 background-color: #ffffff;
+//                 padding: 40px;
+//                 border-radius: 12px;
+//                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+//                 max-width: 500px;
+//                 width: 100%;
+//                 text-align: center;
+//             }
+//             h1 {
+//                 color: #d32f2f;
+//                 margin-bottom: 10px;
+//             }
+//             p {
+//                 color: #333333;
+//                 font-size: 16px;
+//                 line-height: 1.5;
+//             }
+//             .job-details {
+//                 display: inline-block;
+//                 margin: 20px 0;
+//                 padding: 15px 30px;
+//                 font-size: 18px;
+//                 background-color: #ffebee;
+//                 color: #d32f2f;
+//                 border-radius: 8px;
+//                 font-weight: bold;
+//             }
+//             .footer {
+//                 margin-top: 20px;
+//                 font-size: 12px;
+//                 color: #777777;
+//             }
+//         </style>
+//         </head>
+//         <body>
+//         <div class="container">
+//             <h1>Job Posting Deleted</h1>
+//             <p>Dear ${user.firstName || 'User'},</p>
+//             <p>We regret to inform you that your job posting on <strong>SainikHR</strong> has been deleted by an administrator.</p>
+//             <div class="job-details">
+//                 <strong>Role:</strong> ${job.role || 'N/A'}<br>
+//                 <strong>Company:</strong> ${job.companyName || 'N/A'}
+//             </div>
+//             <p>If you believe this was a mistake or need further clarification, please contact our support team.</p>
+//             <p class="footer">Need help? Contact our support team at <a href="mailto:support@sainikhr.com">support@sainikhr.com</a>.</p>
+//             <p class="footer">Best regards,<br>The SainikHR Team</p>
+//         </div>
+//         </body>
+//     </html>
+//     `;
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL,
-        pass: process.env.PASSWORD,
-      },
-    });
+//     const transporter = nodemailer.createTransport({
+//       service: 'gmail',
+//       auth: {
+//         user: process.env.GMAIL,
+//         pass: process.env.PASSWORD,
+//       },
+//     });
 
-    const mailOptions = {
-      from: process.env.GMAIL,
-      to: recipientEmail,
-      subject: subject,
-      html: htmlContent,
-    };
+//     const mailOptions = {
+//       from: process.env.GMAIL,
+//       to: recipientEmail,
+//       subject: subject,
+//       html: htmlContent,
+//     };
 
-    return new Promise((resolve, reject) => {
-      transporter.sendMail(mailOptions, (error, info) => {
-        if (error) {
-          console.error('Error sending job deletion email:', error);
-          reject(new Error('Failed to send job deletion email'));
-        } else {
-          console.log('Job deletion email sent:', info.response);
-          resolve({ message: 'Job deletion email sent successfully!' });
-        }
-      });
-    });
-  } catch (error) {
-    console.error('Error in sendJobDeletionEmail:', error);
-    throw error; // Let the caller handle the error
-  }
-};
+//     return new Promise((resolve, reject) => {
+//       transporter.sendMail(mailOptions, (error, info) => {
+//         if (error) {
+//           console.error('Error sending job deletion email:', error);
+//           reject(new Error('Failed to send job deletion email'));
+//         } else {
+//           console.log('Job deletion email sent:', info.response);
+//           resolve({ message: 'Job deletion email sent successfully!' });
+//         }
+//       });
+//     });
+//   } catch (error) {
+//     console.error('Error in sendJobDeletionEmail:', error);
+//     throw error; // Let the caller handle the error
+//   }
+// };
 
 const sendMutualMatchEmail = async (application, job, user) => {
   try {

@@ -12,7 +12,7 @@ router.post('/register', authMiddleware.authenticateToken, validationMiddleware.
 router.post('/login', validationMiddleware.validateBody(validator.loginSchema), authController.logIn)
 router.delete('/account/delete', authMiddleware.authenticateToken, authController.deleteAccount)
 router.get('/profile', authMiddleware.authenticateToken, authMiddleware.authorizeRoles("corporate"), corporateController.getProfile)
-router.get('/findProfile', authMiddleware.authenticateToken, authMiddleware.authorizeRoles("corporate"), corporateController.searchVeterans)
+router.get('/findProfile', authMiddleware.authenticateToken, authMiddleware.authorizeRoles("corporate"),restrictActions('skillLocationFilters') ,corporateController.searchVeterans)
 router.put('/profile/update', authMiddleware.authenticateToken, validationMiddleware.validateBody(validator.profileUpdateCorporateSchema), corporateController.updateProfile)
 
 router.get('/plan',adminController.getPlans)
@@ -23,14 +23,15 @@ router.put('/job/update',authMiddleware.authenticateToken,authMiddleware.authori
 router.delete('/job/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate","manageJobs"),corporateController.deletePostedJob)
 router.get('/job',authMiddleware.authenticateToken,authMiddleware.authorizeRoles('veteran','corporate','manageJobs'),corporateController.getJobs)
 
+router.post('/jobs/:jobId/view', authMiddleware.authenticateToken, corporateController.recordJobView);
+
 router.get('/resume',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),restrictActions('resumeView'),corporateController.getResume) 
+router.post('/resume/download', authMiddleware.authenticateToken,authMiddleware.authorizeRoles('corporate'),restrictActions('resumeDownload'), corporateController.generateResumeEndpoint)
 router.put('/match',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),restrictActions('matchCandidatesEmailing'),corporateController.matchUserProfile) 
-router.get('/application',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),restrictActions('matchCandidatesEmailing'),corporateController.getApplications) 
+router.get('/application',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.getApplications) 
 router.put('/request/video',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),restrictActions('profileVideoRequest'),corporateController.requestProfileVideo) 
 
-router.post('/jobs/:jobId/view', authMiddleware.authenticateToken, corporateController.recordJobView);
 // router.post('/jobs/:jobId/apply', authMiddleware.authenticateToken, corporateController.recordJobApplication);
 
-router.post('/resume/download', authMiddleware.authenticateToken, corporateController.generateResumeEndpoint)
 
 module.exports = router;

@@ -16,7 +16,7 @@ const Application = require('./Application');
 const SavedJob = require('./SavedJob');
 const Access = require('./Access');
 const JobViewsApplications = require('./JobViewsApplications');
-
+const CurrentSubscribedPlan = require('./CurrentSubscribedPlan')
 // === Associations ===
 
 // -- User → Details --
@@ -61,7 +61,7 @@ CorporateDetails.hasMany(Application, { foreignKey: 'corporateId' });
 Application.belongsTo(CorporateDetails, { foreignKey: 'corporateId' });
 
 // -- Subscribed Plan --
-User.hasMany(SubscribedPlan, { foreignKey: 'userId' });
+User.hasOne(SubscribedPlan, { foreignKey: 'userId' });
 SubscribedPlan.belongsTo(User, { foreignKey: 'userId' });
 
 CorporatePlan.hasMany(SubscribedPlan, { foreignKey: 'planId' });
@@ -88,6 +88,9 @@ JobViewsApplications.belongsTo(User, { foreignKey: 'userId' });
 
 Job.hasMany(JobViewsApplications, { foreignKey: 'jobId', as: 'JobViewsApplications' });
 JobViewsApplications.belongsTo(Job, { foreignKey: 'jobId' });
+CorporateDetails.hasOne(CurrentSubscribedPlan, { foreignKey: 'userId' });
+CurrentSubscribedPlan.belongsTo(CorporateDetails, { foreignKey: 'userId' });
+CurrentSubscribedPlan.belongsTo(SubscribedPlan, { foreignKey: 'subscriptionId', targetKey: 'id' });
 
 
 // === Export Models ===
@@ -107,5 +110,6 @@ module.exports = {
   Job,
   Application,
   SavedJob,
-  JobViewsApplications
+  JobViewsApplications,
+  CorporateDetails, CurrentSubscribedPlan, SubscribedPlan
 };

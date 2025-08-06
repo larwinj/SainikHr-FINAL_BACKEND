@@ -21,8 +21,8 @@
 // ------------------------------------------------------------------------------------
 const { Sequelize } = require('sequelize');
 
-const sequelize = new Sequelize('sainikhr', 'root', 'Rooban@6362', {
-  host: 'localhost',
+const sequelize = new Sequelize('sainikhr', 'root', 'Root$123', {
+  host: 'sainikhrdb.cpq22qs8grtm.eu-north-1.rds.amazonaws.com',
   dialect: 'mysql',
   // logging: false,
 });

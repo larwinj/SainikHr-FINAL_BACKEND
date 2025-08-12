@@ -13,6 +13,7 @@ const {
      ResumeExperience,
       ResumeProjects,
     } = require("../models");
+const { generateResume } = require("../utils/generateResume");
 
 async function saveOrRemoveJob(req, res) {
   try {
@@ -313,7 +314,7 @@ async function matchCorporateJob(req, res) {
       });
 
       // Increment the data_applied count for the job
-      await existingJob.increment('data_applied');
+      await existingJob.increment('application_count');
     }
 
     return res.status(200).json({ message: "You've successfully matched yourself to the job!" });
@@ -441,6 +442,109 @@ async function rejectRequest(req, res) {
   }
 }
 
+async function generateResumeEndpointVeteran(req, res) {
+  try {
+    const userId = req.user?.userId;
+    console.log("Received request to generate resume:", {
+      userId,
+      authUser: req.user,
+    });
+
+    if (!userId) {
+      console.error("Missing userId in request body");
+      return res
+        .status(400)
+        .json({ message: "userId is required in request body" });
+    }
+
+    if (!req.user) {
+      console.error("No user found in request");
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    // Log user details for debugging
+    // console.log('Authenticated user:', { userId: req.user.userId, role: req.user.role, planId:STRUCTOR})
+    // Check subscription status for corporate users
+    // const subscription = await SubscribedPlan.findOne({
+    //   where: { userId: req.user.userId, planId: req.user.planId },
+    //   include: [{ model: CorporatePlan, attributes: ['planId', 'name', 'permissions'] }]
+    // });
+
+    // Check permissions (admin or resume permission)
+    // const isOwnResume = req.user.userId === userId;
+    // const hasResumePermission = req.user.role === 'admin' ||
+    //   subscription?.CorporatePlan?.permissions?.includes('resume') ||
+    //   req.user.permissions?.includes('resume');
+
+    // if (!isOwnResume && !hasResumePermission) {
+    //   console.error('Authorization failed:', { requestedUserId: userId, authUserId: req.user.userId });
+    //   return res.status(403).json({ message: 'Unauthorized to generate resume for this user' });
+    // }
+
+    // Fetch user and resume data
+    const userData = await User.findOne({ where: { userId } });
+    if (!userData) {
+      console.error("User not found:", { userId });
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const resume = await Resume.findOne({
+      where: { userId },
+      include: [
+        { model: ResumeEducation, as: "education" },
+        { model: ResumeExperience, as: "workExperience" },
+        { model: ResumeProjects, as: "projects" },
+      ],
+      order: [['updatedAt', 'DESC']],
+    });
+
+    if (!resume) {
+      console.error("Resume not found:", { userId });
+      return res.status(404).json({ message: "Resume not found" });
+    }
+
+    // Prepare JSON data for PDF generation
+    const resumeData = {
+      userId,
+      name:
+        resume.name ||
+        `${userData.firstName} ${userData.lastName || ""}`.trim(),
+      title: resume.title || "",
+      contact: resume.contact || {},
+      profile: resume.profile || "",
+      skills: resume.skills || [],
+      education: (resume.education || []).map((edu) => ({
+        years: edu.years || "",
+        institution: edu.institution || "",
+        degree: edu.degree || "",
+        percentage: edu.percentage || "",
+      })),
+      work_experience: (resume.workExperience || []).map((exp) => ({
+        company: exp.company || "",
+        role: exp.role || "",
+        duration: exp.duration || "",
+        responsibilities: exp.responsibilities || [],
+      })),
+      projects: (resume.projects || []).map((proj) => ({
+        title: proj.title || "",
+        role: proj.role || "",
+        year: proj.year || "",
+        description: proj.description || "",
+      })),
+    };
+
+    console.log("Generating resume for:", { userId, name: resumeData.name });
+
+    // Generate and send PDF
+    await generateResume(resumeData, res);
+  } catch (error) {
+    console.error("Error generating resume:", error);
+    return res
+      .status(500)
+      .json({ message: error.message || "Internal Server Error" });
+  }
+}
+
 module.exports = { 
     saveOrRemoveJob,
     getProfile,
@@ -450,4 +554,5 @@ module.exports = {
     matchCorporateJob,
     acceptRequestAndUploadVideo,
     rejectRequest,
+    generateResumeEndpointVeteran
 }

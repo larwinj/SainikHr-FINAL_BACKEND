@@ -579,38 +579,40 @@ async function getProfile(req, res) {
         "companySize",
         "contactPerson",
         "email",
+        "views",
+        "application_count",
       ],
     });
 
     // Calculate view and application counts from JobViewsApplications
-    const jobViewCounts = await JobViewsApplications.findAll({
-      where: { jobId: postedJobs.map((job) => job.jobId), hasViewed: true },
-      attributes: [
-        "jobId",
-        [sequelize.fn("COUNT", sequelize.col("id")), "viewCount"],
-      ],
-      group: ["jobId"],
-    });
+    // const jobViewCounts = await JobViewsApplications.findAll({
+    //   where: { jobId: postedJobs.map((job) => job.jobId), hasViewed: true },
+    //   attributes: [
+    //     "jobId",
+    //     [sequelize.fn("COUNT", sequelize.col("id")), "viewCount"],
+    //   ],
+    //   group: ["jobId"],
+    // });
 
-    const jobApplicationCounts = await JobViewsApplications.findAll({
-      where: { jobId: postedJobs.map((job) => job.jobId), hasApplied: true },
-      attributes: [
-        "jobId",
-        [sequelize.fn("COUNT", sequelize.col("id")), "applicationCount"],
-      ],
-      group: ["jobId"],
-    });
+    // const jobApplicationCounts = await JobViewsApplications.findAll({
+    //   where: { jobId: postedJobs.map((job) => job.jobId), hasApplied: true },
+    //   attributes: [
+    //     "jobId",
+    //     [sequelize.fn("COUNT", sequelize.col("id")), "applicationCount"],
+    //   ],
+    //   group: ["jobId"],
+    // });
 
     // Map jobId to view and application counts
-    const viewCountMap = jobViewCounts.reduce((acc, item) => {
-      acc[item.jobId] = parseInt(item.get("viewCount"), 10);
-      return acc;
-    }, {});
+    // const viewCountMap = jobViewCounts.reduce((acc, item) => {
+    //   acc[item.jobId] = parseInt(item.get("viewCount"), 10);
+    //   return acc;
+    // }, {});
 
-    const applicationCountMap = jobApplicationCounts.reduce((acc, item) => {
-      acc[item.jobId] = parseInt(item.get("applicationCount"), 10);
-      return acc;
-    }, {});
+    // const applicationCountMap = jobApplicationCounts.reduce((acc, item) => {
+    //   acc[item.jobId] = parseInt(item.get("applicationCount"), 10);
+    //   return acc;
+    // }, {});
 
     // Prepare plan data
     const planData = currentSubscription?.SubscribedPlan
@@ -687,8 +689,8 @@ async function getProfile(req, res) {
         companySize: job.companySize,
         contactPerson: job.contactPerson,
         email: job.email,
-        views: viewCountMap[job.jobId] || 0,
-        appliedVeterans: applicationCountMap[job.jobId] || 0,
+        views: job.views || 0,
+        applicationCount: job.application_count || 0,
       })),
       planData,
     };
@@ -1533,5 +1535,5 @@ module.exports = {
   searchVeterans,
   recordJobView,
   recordJobApplication,
-  generateResumeEndpoint,
+  generateResumeEndpoint
 };

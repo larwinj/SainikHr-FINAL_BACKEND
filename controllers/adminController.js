@@ -95,7 +95,10 @@ async function deletePlan(req, res) {
     if (!planId) {
       return res.status(400).json({ message: 'Plan ID is required' });
     }
-
+    if(planId === '550e8400-e29b-41d4-a716-446655440000'){
+      return res.status(400).json({ message: 'Cannot delete the default plan' });
+    }
+    
     const existingPlan = await CorporatePlan.findOne({ where: { planId } });
     if (!existingPlan) {
       return res.status(404).json({ message: 'Plan not found' });

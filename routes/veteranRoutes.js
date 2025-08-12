@@ -25,6 +25,8 @@ router.get('/resume',authMiddleware.authenticateToken,authMiddleware.authorizeRo
 router.post('/resume/create',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.resumeSchema),veteranController.createOrUpdateResume)
 router.put('/resume/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),validationMiddleware.validateBody(validator.resumeSchema),veteranController.createOrUpdateResume)
 router.delete('/resume/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),veteranController.deleteResume)
+router.post('/resume/download', authMiddleware.authenticateToken,authMiddleware.authorizeRoles('veteran'),veteranController.generateResumeEndpointVeteran)
+
 
 router.get('/application',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),corporateController.getApplications) 
 router.post('/request/video/accept',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("veteran"),upload.single('video'),veteranController.acceptRequestAndUploadVideo)

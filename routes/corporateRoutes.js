@@ -27,11 +27,12 @@ router.post('/jobs/:jobId/view', authMiddleware.authenticateToken, corporateCont
 
 router.get('/resume',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),restrictActions('resumeView'),corporateController.getResume) 
 router.post('/resume/download', authMiddleware.authenticateToken,authMiddleware.authorizeRoles('corporate'),restrictActions('resumeDownload'), corporateController.generateResumeEndpoint)
+
 router.put('/match',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),restrictActions('matchCandidatesEmailing'),corporateController.matchUserProfile) 
 router.get('/application',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),corporateController.getApplications) 
 router.put('/request/video',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("corporate"),restrictActions('profileVideoRequest'),corporateController.requestProfileVideo) 
 
-// router.post('/jobs/:jobId/apply', authMiddleware.authenticateToken, corporateController.recordJobApplication);
+router.post('/jobs/:jobId/apply', authMiddleware.authenticateToken, corporateController.recordJobApplication);
 
 
 module.exports = router;

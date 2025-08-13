@@ -38,7 +38,7 @@ router.get(
   adminController.getPlans
 );
 
-router.post('/job/post',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("manageJobs"),validationMiddleware.validateBody(validator.jobSchema),corporateController.postOrUpdateJob)
+router.post('/job/post',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("manageJobs"),validationMiddleware.validateBody(validator.publicJobSchema),corporateController.postOrUpdateJob)
 router.put('/job/update',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("manageJobs"),validationMiddleware.validateBody(validator.jobSchema),corporateController.postOrUpdateJob)
 router.delete('/job/delete',authMiddleware.authenticateToken,authMiddleware.authorizeRoles("manageJobs"),corporateController.deletePostedJob)
 router.get('/job',authMiddleware.authenticateToken,corporateController.getJobs)

@@ -68,7 +68,7 @@ const CorporatePlan = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
       validate: {
-        isIn: [["day", "week", "month", "year"]], // Restrict to valid units
+        isIn: [["days", "weeks", "months", "years"]], // Restrict to valid units
       },
       comment: "Unit of duration (e.g., day, week, month, year)",
     },

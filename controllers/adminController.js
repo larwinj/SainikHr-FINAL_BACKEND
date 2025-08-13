@@ -53,6 +53,8 @@ async function createOrUpdatePlan(req, res) {
         durationUnit: data.duration.unit,
         rate: data.cost.rate,
         currency: data.cost.currency,
+        description:data.description,
+        isPopular:false
       });
 
       message = `Plan ${data.planName} updated successfully`;
@@ -74,6 +76,8 @@ async function createOrUpdatePlan(req, res) {
         currency: data.cost.currency,
         createdAt: new Date(),
         updatedAt: new Date(),
+        description:data.description,
+        isPopular:false
       });
 
       message = `Plan ${data.planName} created successfully`;
@@ -161,6 +165,9 @@ async function getPlans(req, res) {
           },
           createdAt: plan.createdAt,
           updatedAt: plan.updatedAt,
+          description:plan.description,
+          isPopular:plan.isPopular
+          
         },
       });
     }
@@ -196,6 +203,8 @@ async function getPlans(req, res) {
       },
       createdAt: plan.createdAt,
       updatedAt: plan.updatedAt,
+      description:plan.description,
+      isPopular:plan.isPopular
     }));
 
     return res.status(200).json({
@@ -418,7 +427,7 @@ async function updateAdminAccess(req, res) {
       managePlans: data.access?.managePlans || false
     });
 
-    // Optional: update `updatedAt` on the user (if needed)
+    // Optional: update updatedAt on the user (if needed)
     await User.update(
       { updatedAt: new Date() },
       { where: { userId } }
